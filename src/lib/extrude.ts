@@ -87,13 +87,17 @@ function extrudeRings(outerIn: Poly, holesIn: Poly[], depth: number): BufferGeom
 
 export function extrudeSolid(shape: Shape, depth: number, samples = 16): BufferGeometry {
   const quality = Math.max(32, samples);
+  const outer = ringFrom(shape, quality);
+  const holes = shape.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
+  const direct = extrudeRings(outer, holes, depth);
+  if (direct.getIndex()?.count) return direct;
+
   const nested = polysToShapes(shapeToPolys(shape, quality), false, 0.05);
-  const sources = nested.length ? nested : [shape];
-  const geos = sources
+  const geos = (nested.length ? nested : [shape])
     .map((item) => {
-      const outer = ringFrom(item, quality);
-      const holes = item.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
-      return extrudeRings(outer, holes, depth);
+      const nextOuter = ringFrom(item, quality);
+      const nextHoles = item.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
+      return extrudeRings(nextOuter, nextHoles, depth);
     })
     .filter((geo) => (geo.getIndex()?.count ?? 0) > 0);
 
