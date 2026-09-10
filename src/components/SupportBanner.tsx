@@ -8,13 +8,13 @@ const WALLETS: Record<
 > = {
   maya: {
     label: "Maya",
-    src: "/support/maya.jpg",
+    src: "/support/maya-qr.png",
     hint: "@mikecorpuz · InstaPay",
     accent: "#00A87E",
   },
   gcash: {
     label: "GCash",
-    src: "/support/gcash.png",
+    src: "/support/gcash-qr.png",
     hint: "InstaPay · transfer fees may apply",
     accent: "#007DFF",
   },
@@ -62,14 +62,14 @@ export function SupportBanner() {
       </div>
 
       {open && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-line bg-ink/50 p-3">
+        <div className="mt-3 overflow-hidden rounded-xl border border-line bg-white p-3">
           <img
             src={WALLETS[open].src}
             alt={`${WALLETS[open].label} QR for Michael Corpuz`}
-            className="mx-auto max-h-56 w-auto rounded-lg"
+            className="mx-auto aspect-square w-full rounded-md"
           />
-          <div className="mt-2 text-center text-[11px] text-muted">{WALLETS[open].hint}</div>
-          <div className="mt-0.5 text-center text-xs text-paper/80">Michael Corpuz</div>
+          <div className="mt-2 text-center text-[11px] text-ink/60">{WALLETS[open].hint}</div>
+          <div className="mt-0.5 text-center text-xs font-medium text-ink">Michael Corpuz</div>
         </div>
       )}
     </section>
