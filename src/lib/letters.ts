@@ -12,7 +12,7 @@ import {
 } from "./offset";
 
 const LETTER_THICKEN_MM = 0.22;
-const LETTER_SIMPLIFY_MM = 0.08;
+const LETTER_SIMPLIFY_MM = 0.04;
 const MIN_COUNTER_MM = 2.4;
 const MIN_STROKE_MM = 1.15;
 
@@ -21,7 +21,7 @@ export function textShapes(font: Font, text: string, fontSize: number, letterSpa
   const shapes: Shape[] = [];
   let cursor = 0;
   const spacing = letterSpacing * fontSize * 0.01;
-  const quality = Math.max(16, samples);
+  const quality = Math.max(24, samples);
 
   for (const glyph of glyphs) {
     const path = glyph.getPath(cursor, 0, fontSize);

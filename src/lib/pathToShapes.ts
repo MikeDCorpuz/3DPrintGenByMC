@@ -88,8 +88,8 @@ function flattenPath(path: OpenPath, samples: number): Vector2[][] {
   };
 
   const curveSteps = (length: number) => {
-    const spacing = 4;
-    return Math.max(3, Math.min(Math.max(8, samples), Math.ceil(length / spacing)));
+    const spacing = 2.5;
+    return Math.max(4, Math.min(Math.max(12, samples), Math.ceil(length / spacing)));
   };
 
   for (const cmd of path.commands) {

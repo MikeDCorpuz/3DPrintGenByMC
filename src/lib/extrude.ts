@@ -2,7 +2,7 @@ import { BufferAttribute, BufferGeometry, ShapeUtils, Vector2, type Shape } from
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { polysToShapes, shapeToPolys, signedArea, type Poly } from "./offset";
 
-function cleanRing(points: Vector2[], minDist = 0.02): Poly {
+function cleanRing(points: Vector2[], minDist = 0.012): Poly {
   const ring: Poly = [];
   for (const p of points) {
     const last = ring[ring.length - 1];

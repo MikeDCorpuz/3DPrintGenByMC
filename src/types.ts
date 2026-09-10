@@ -1,4 +1,4 @@
-export type ProductType = "keychain" | "clicker";
+export type ProductType = "keychain" | "clicker" | "clicker-v2";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
@@ -58,6 +58,14 @@ export interface KeychainParams {
   clickerLetterGapMm: number;
 }
 
+export function isClickerProduct(productType: ProductType) {
+  return productType === "clicker" || productType === "clicker-v2";
+}
+
+export function isClickerV2(productType: ProductType) {
+  return productType === "clicker-v2";
+}
+
 export interface BuiltPart {
   id: LayerId;
   name: string;
@@ -110,7 +118,7 @@ export const DEFAULT_PARAMS: KeychainParams = {
   ringMarginMm: 2.8,
   letterSpacing: 0,
   textCase: "as-is",
-  curveSegments: 10,
+  curveSegments: 16,
   bevelEnabled: false,
   bevelSizeMm: 0.15,
   bedGapMm: 4,

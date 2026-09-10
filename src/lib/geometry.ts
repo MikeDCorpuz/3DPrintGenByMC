@@ -2,6 +2,7 @@ import { Box3, BufferGeometry, Vector3 } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
+import { isClickerProduct } from "../types";
 import { letterOutersMm, letterShapesMm, shapesBounds, textShapes } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
@@ -88,7 +89,7 @@ export function layerHeights(params: KeychainParams) {
 export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain {
   const text = formatName(params.name, params.textCase);
   const heights = layerHeights(params);
-  const samples = Math.max(16, params.curveSegments);
+  const samples = Math.max(20, params.curveSegments);
 
   const rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
   if (!rawShapes.length) {
@@ -254,10 +255,9 @@ export function buildBatch(font: Font, params: KeychainParams): BuiltBatch {
   const labels = parseNames(params.name, params.textCase);
   const built = labels.map((label) => ({
     label,
-    keychain:
-      params.productType === "clicker"
-        ? buildClicker(font, { ...params, name: label, textCase: "as-is" })
-        : buildKeychain(font, { ...params, name: label, textCase: "as-is" }),
+    keychain: isClickerProduct(params.productType)
+      ? buildClicker(font, { ...params, name: label, textCase: "as-is" })
+      : buildKeychain(font, { ...params, name: label, textCase: "as-is" }),
   }));
   const packed = packOnBed(
     built.map(({ keychain }) => ({
@@ -279,7 +279,7 @@ export function buildBatch(font: Font, params: KeychainParams): BuiltBatch {
 
   if (!items.length) {
     throw new Error(
-      params.productType === "clicker"
+      isClickerProduct(params.productType)
         ? "None of the clickers fit on the 256 × 256 mm bed. Reduce spacing or the letter list."
         : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
     );

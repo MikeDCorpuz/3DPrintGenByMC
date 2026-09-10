@@ -272,6 +272,7 @@ function buildConnectedHousing(
   wells: { x: number; y: number }[],
   originX: number,
   originY: number,
+  linked = false,
 ): BuiltPart | null {
   if (!params.clickerPrintHousing || !params.layers.housing || !wells.length) return null;
 
@@ -280,22 +281,22 @@ function buildConnectedHousing(
   const floor = params.clickerFloorMm;
   const segs = params.curveSegments;
   const bevel = params.bevelEnabled ? params.bevelSizeMm : 0;
-  const overlap = 2.4;
+  const overlap = linked ? 3.2 : 2.4;
   const barH = Math.max(4, params.clickerJoinMm);
   const first = wells[0];
   const last = wells[wells.length - 1];
   const bar = {
     x: (first.x + last.x) / 2,
-    y: first.y - outer / 2 - barH / 2 + overlap,
+    y: linked ? first.y - outer * 0.18 : first.y - outer / 2 - barH / 2 + overlap,
     w: last.x - first.x + outer,
-    h: barH,
+    h: linked ? Math.max(barH, outer * 0.55) : barH,
   };
   const ring = connectedRing(params, wells, outer, bar);
   const tabR = ring ? ring.holeR + params.ringMarginMm + 1.1 : 0;
 
   const solids: Poly[] = [
     ...wells.map((well) => platePoly(outer, outer, radius, well.x, well.y, segs)),
-    platePoly(bar.w, bar.h, Math.min(bar.h / 2, 3.2), bar.x, bar.y, segs),
+    platePoly(bar.w, bar.h, Math.min(bar.h / 2, linked ? outer / 3 : 3.2), bar.x, bar.y, segs),
   ];
   if (ring) solids.push(circlePoly(ring.x, ring.y, tabR, 48));
 
@@ -374,7 +375,7 @@ function buildKeycap(
   }
 
   const text = label ?? formatName(params.name, params.textCase);
-  const samples = Math.max(8, params.curveSegments);
+  const samples = Math.max(16, params.curveSegments);
   const rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
   if (!rawShapes.length) return parts;
   const box = shapesBounds(rawShapes);
@@ -433,7 +434,7 @@ function buildSeparateClicker(font: Font, params: KeychainParams): BuiltKeychain
   return finishClicker(parts);
 }
 
-function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychain {
+function buildConnectedClicker(font: Font, params: KeychainParams, linked = false): BuiltKeychain {
   const letters = clickerLetters(params.name);
   if (!letters.length) {
     throw new Error("Type a name so the clicker letters can join into one bar.");
@@ -444,8 +445,10 @@ function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychai
 
   const outer = housingOuter(params);
   const size = capSize(params);
-  const pitch = outer + params.clickerLetterGapMm;
-  const bodyW = letters.length * pitch - params.clickerLetterGapMm;
+  // v2 pulls wells closer so the housing reads as one linked body.
+  const gap = linked ? Math.min(params.clickerLetterGapMm, 0.6) : params.clickerLetterGapMm;
+  const pitch = outer + gap;
+  const bodyW = letters.length * pitch - gap;
   const wells = letters.map((letter, i) => ({
     letter,
     x: -bodyW / 2 + outer / 2 + i * pitch,
@@ -453,7 +456,7 @@ function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychai
   }));
 
   const barH = Math.max(4, params.clickerJoinMm);
-  const housingBottom = -outer / 2 - barH + 2.4;
+  const housingBottom = linked ? -outer / 2 - barH * 0.35 : -outer / 2 - barH + 2.4;
   const printHousing = params.clickerPrintHousing && params.layers.housing;
   const printCaps = params.clickerPrintKeycap;
   const capY = printHousing ? housingBottom - PRINT_GAP - size / 2 : 0;
@@ -468,7 +471,7 @@ function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychai
   }
 
   const parts: BuiltPart[] = [];
-  const housing = buildConnectedHousing(params, wells, originX, originY);
+  const housing = buildConnectedHousing(params, wells, originX, originY, linked);
   if (housing) parts.push(housing);
   for (const well of wells) {
     parts.push(...buildKeycap(font, params, well.x + originX, capY + originY, well.letter));
@@ -477,6 +480,19 @@ function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychai
 }
 
 export function buildClicker(font: Font, params: KeychainParams): BuiltKeychain {
+  if (params.productType === "clicker-v2") {
+    return buildConnectedClicker(
+      font,
+      {
+        ...params,
+        clickerLayout: "connected",
+        clickerJoinMm: params.clickerJoinMm ?? 8.5,
+        clickerLetterGapMm: params.clickerLetterGapMm ?? 0.4,
+        ringPosition: params.ringPosition === "none" ? "left" : params.ringPosition,
+      },
+      true,
+    );
+  }
   return params.clickerLayout === "separate"
     ? buildSeparateClicker(font, params)
     : buildConnectedClicker(font, {

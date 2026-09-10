@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { FONTS } from "../lib/fonts";
 import {
   PRESET_COLORS,
+  isClickerProduct,
+  isClickerV2,
   type ClickerLayout,
   type KeychainParams,
   type KeychainType,
@@ -23,6 +25,7 @@ interface ControlsProps {
 const PRODUCTS: { id: ProductType; label: string }[] = [
   { id: "keychain", label: "Keychain" },
   { id: "clicker", label: "Clicker" },
+  { id: "clicker-v2", label: "Clicker v2" },
 ];
 
 const LAYOUTS: { id: ClickerLayout; label: string }[] = [
@@ -171,7 +174,9 @@ function LayerCard({
 }
 
 export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) {
-  const clicker = params.productType === "clicker";
+  const clicker = isClickerProduct(params.productType);
+  const clickerV2 = isClickerV2(params.productType);
+  const connected = clicker && (clickerV2 || params.clickerLayout === "connected");
   return (
     <div className="scrollbar-thin flex h-full flex-col gap-6 overflow-y-auto p-5">
       <section className="space-y-3">
@@ -182,32 +187,46 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             onChange={(productType) =>
               onChange({
                 productType,
-                ...(productType === "clicker" && params.ringPosition === "none"
-                  ? { ringPosition: "left" as const, clickerLayout: "connected" as const }
+                ...(isClickerProduct(productType)
+                  ? {
+                      ringPosition:
+                        params.ringPosition === "none" ? ("left" as const) : params.ringPosition,
+                      clickerLayout: "connected" as const,
+                      ...(productType === "clicker-v2"
+                        ? {
+                            clickerLetterGapMm: 0.4,
+                            clickerJoinMm: 8.5,
+                            name:
+                              params.productType === "clicker-v2" ? params.name : params.name || "AIZA",
+                          }
+                        : {}),
+                    }
                   : {}),
               })
             }
           />
         </Field>
         <Field
-          label={clicker && params.clickerLayout === "separate" ? "Letters" : "Names"}
+          label={clicker && !connected ? "Letters" : "Names"}
           value={`${params.name.split(",").filter((part) => part.trim()).length || 1} on bed`}
         >
           <textarea
             value={params.name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder={
-              clicker && params.clickerLayout === "connected" ? "MICHAEL, ALEX" : clicker ? "M, A, S" : "MICHAEL, ALEX, SAM"
+              connected ? "MICHAEL, ALEX" : clicker ? "M, A, S" : "MICHAEL, ALEX, SAM"
             }
             rows={4}
             className="w-full resize-y rounded-lg border border-line bg-ink px-3 py-2.5 text-base leading-relaxed outline-none ring-accent/40 focus:ring-2"
           />
           <p className="text-[11px] leading-relaxed text-muted">
-            {clicker && params.clickerLayout === "connected"
-              ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
-              : clicker
-                ? "One letter per clicker works best. Separate with commas to print a set."
-                : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
+            {clickerV2
+              ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
+              : connected
+                ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
+                : clicker
+                  ? "One letter per clicker works best. Separate with commas to print a set."
+                  : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
           </p>
         </Field>
         <Field label="Text case">
@@ -292,32 +311,37 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               MX fits Cherry / Gateron / Kailh MX. 1u keyboard uses a 19.05 mm cap and a matching case.
             </p>
           </Field>
-          <Field label="Layout">
-            <ChipRow
-              value={params.clickerLayout ?? "connected"}
-              options={LAYOUTS}
-              onChange={(clickerLayout) =>
-                onChange({
-                  clickerLayout,
-                  ...(clickerLayout === "connected" && params.ringPosition === "none"
-                    ? { ringPosition: "left" as const }
-                    : {}),
-                })
-              }
-            />
-            <p className="text-[11px] leading-relaxed text-muted">
-              {params.clickerLayout === "connected"
-                ? "Left key ring, then letter wells in a row with a joining bar at the bottom so they read as one name."
-                : "Each letter is its own housing and cap, packed separately on the bed."}
+          {!clickerV2 && (
+            <Field label="Layout">
+              <ChipRow
+                value={params.clickerLayout ?? "connected"}
+                options={LAYOUTS}
+                onChange={(clickerLayout) =>
+                  onChange({
+                    clickerLayout,
+                    ...(clickerLayout === "connected" && params.ringPosition === "none"
+                      ? { ringPosition: "left" as const }
+                      : {}),
+                  })
+                }
+              />
+              <p className="text-[11px] leading-relaxed text-muted">
+                {params.clickerLayout === "connected"
+                  ? "Left key ring, then letter wells in a row with a joining bar at the bottom so they read as one name."
+                  : "Each letter is its own housing and cap, packed separately on the bed."}
+              </p>
+            </Field>
+          )}
+          {clickerV2 && (
+            <p className="rounded-lg border border-line bg-ink/40 px-3 py-2 text-[11px] leading-relaxed text-muted">
+              Clicker v2 always uses a linked name-bar housing with the ring on the left.
             </p>
-          </Field>
+          )}
           <label className="flex items-center justify-between gap-3 rounded-lg border border-line bg-ink/40 px-3 py-2">
             <div>
               <div className="text-sm">Print housing</div>
               <div className="text-[11px] text-muted">
-                {params.clickerLayout === "connected"
-                  ? "Name bar the switches snap into"
-                  : "Case the switch snaps into"}
+                {connected ? "Name bar the switches snap into" : "Case the switch snaps into"}
               </div>
             </div>
             <input
@@ -409,7 +433,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               onChange={(e) => onChange({ clickerWellMm: Number(e.target.value) })}
             />
           </Field>
-          {params.clickerLayout === "connected" && (
+          {connected && (
             <>
               <Field label="Join bar" value={`${(params.clickerJoinMm ?? 7.2).toFixed(1)} mm`}>
                 <input
@@ -424,7 +448,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               <Field label="Letter gap" value={`${(params.clickerLetterGapMm ?? 1.6).toFixed(1)} mm`}>
                 <input
                   type="range"
-                  min={0.4}
+                  min={0}
                   max={4}
                   step={0.1}
                   value={params.clickerLetterGapMm ?? 1.6}
@@ -595,7 +619,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           <ChipRow
             value={params.ringPosition}
             options={
-              clicker && params.clickerLayout === "connected"
+              connected
                 ? RINGS.filter((ring) => ring.id === "left" || ring.id === "none" || ring.id === "right")
                 : RINGS
             }
@@ -603,7 +627,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           />
           {clicker && (
             <p className="text-[11px] leading-relaxed text-muted">
-              {params.clickerLayout === "connected"
+              {connected
                 ? "The trend is a split-ring tab on the left letter. Choose None to skip it."
                 : "Optional split-ring tab on the housing. Choose None for a desk fidget."}
             </p>
@@ -696,8 +720,8 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
         <Field label="Curve quality" value={`${params.curveSegments}`}>
           <input
             type="range"
-            min={5}
-            max={20}
+            min={8}
+            max={28}
             step={1}
             value={params.curveSegments}
             onChange={(e) => onChange({ curveSegments: Number(e.target.value) })}
