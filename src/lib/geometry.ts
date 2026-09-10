@@ -2,7 +2,7 @@ import { Box3, BufferGeometry, Vector3 } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
-import { isClickerProduct } from "../types";
+import { isClickerProduct, isMonogramProduct } from "../types";
 import { letterOutersMm, letterShapesMm, shapesBounds, textShapes } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
@@ -10,6 +10,7 @@ import { formatName } from "./fontCache";
 import { BED_SIZE_MM, packOnBed } from "./layout";
 import { parseNames } from "./names";
 import { buildClicker } from "./clicker";
+import { buildMonogram } from "./monogram";
 import { buildCloudParts, cloudScaleExtras } from "./cloud";
 
 const PLA_DENSITY_G_CM3 = 1.24;
@@ -251,14 +252,17 @@ export function disposeBatch(batch: BuiltBatch | null) {
   batch?.items.forEach((item) => disposeKeychain(item.keychain));
 }
 
-export function buildBatch(font: Font, params: KeychainParams): BuiltBatch {
+export function buildBatch(font: Font, params: KeychainParams, scriptFont?: Font): BuiltBatch {
   const labels = parseNames(params.name, params.textCase);
-  const built = labels.map((label) => ({
-    label,
-    keychain: isClickerProduct(params.productType)
-      ? buildClicker(font, { ...params, name: label, textCase: "as-is" })
-      : buildKeychain(font, { ...params, name: label, textCase: "as-is" }),
-  }));
+  const built = labels.map((label) => {
+    const nextParams = { ...params, name: label, textCase: "as-is" as const };
+    const keychain = isClickerProduct(params.productType)
+      ? buildClicker(font, nextParams)
+      : isMonogramProduct(params.productType)
+        ? buildMonogram(font, scriptFont ?? font, nextParams)
+        : buildKeychain(font, nextParams);
+    return { label, keychain };
+  });
   const packed = packOnBed(
     built.map(({ keychain }) => ({
       width: keychain.metrics.widthMm,
@@ -281,7 +285,9 @@ export function buildBatch(font: Font, params: KeychainParams): BuiltBatch {
     throw new Error(
       isClickerProduct(params.productType)
         ? "None of the clickers fit on the 256 × 256 mm bed. Reduce spacing or the letter list."
-        : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
+        : isMonogramProduct(params.productType)
+          ? "None of the letter stands fit on the 256 × 256 mm bed. Reduce height or the name list."
+          : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
     );
   }
 

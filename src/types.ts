@@ -1,4 +1,4 @@
-export type ProductType = "keychain" | "clicker" | "clicker-v2";
+export type ProductType = "keychain" | "clicker" | "clicker-v2" | "monogram";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
@@ -19,6 +19,10 @@ export interface KeychainParams {
   productType: ProductType;
   name: string;
   fontId: string;
+  scriptFontId: string;
+  monogramLetter: string;
+  monogramStandMm: number;
+  monogramScriptAngleDeg: number;
   lengthMm: number;
   totalThicknessMm: number;
   nameRaiseMm: number;
@@ -66,6 +70,10 @@ export function isClickerV2(productType: ProductType) {
   return productType === "clicker-v2";
 }
 
+export function isMonogramProduct(productType: ProductType) {
+  return productType === "monogram";
+}
+
 export interface BuiltPart {
   id: LayerId;
   name: string;
@@ -104,6 +112,10 @@ export const DEFAULT_PARAMS: KeychainParams = {
   productType: "keychain",
   name: "MICHAEL",
   fontId: "montserrat",
+  scriptFontId: "pacifico",
+  monogramLetter: "",
+  monogramStandMm: 8,
+  monogramScriptAngleDeg: 18,
   lengthMm: 72,
   totalThicknessMm: 3,
   nameRaiseMm: 0.8,
@@ -160,6 +172,7 @@ export const PRESET_COLORS = [
   { name: "Red", hex: "#C0392B" },
   { name: "Crimson", hex: "#8B1E3F" },
   { name: "Forest", hex: "#2D5A3D" },
+  { name: "Green", hex: "#2FA84F" },
   { name: "Teal", hex: "#1D6B65" },
   { name: "Navy", hex: "#1C3D5A" },
   { name: "Royal", hex: "#2F4B8A" },

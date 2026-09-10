@@ -4,6 +4,7 @@ import {
   PRESET_COLORS,
   isClickerProduct,
   isClickerV2,
+  isMonogramProduct,
   type ClickerLayout,
   type KeychainParams,
   type KeychainType,
@@ -26,7 +27,11 @@ const PRODUCTS: { id: ProductType; label: string }[] = [
   { id: "keychain", label: "Keychain" },
   { id: "clicker", label: "Clicker" },
   { id: "clicker-v2", label: "Clicker v2" },
+  { id: "monogram", label: "Letter stand" },
 ];
+
+const SCRIPT_FONTS = FONTS.filter((font) => font.style === "script");
+const LETTER_FONTS = FONTS.filter((font) => font.style === "serif" || font.style === "display" || font.style === "sans");
 
 const LAYOUTS: { id: ClickerLayout; label: string }[] = [
   { id: "connected", label: "Name bar" },
@@ -176,6 +181,7 @@ function LayerCard({
 export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) {
   const clicker = isClickerProduct(params.productType);
   const clickerV2 = isClickerV2(params.productType);
+  const monogram = isMonogramProduct(params.productType);
   const connected = clicker && (clickerV2 || params.clickerLayout === "connected");
   return (
     <div className="scrollbar-thin flex h-full flex-col gap-6 overflow-y-auto p-5">
@@ -192,6 +198,22 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                       ringPosition:
                         params.ringPosition === "none" ? ("left" as const) : params.ringPosition,
                       clickerLayout: "connected" as const,
+                      clickerPrintHousing: true,
+                      clickerPrintKeycap: true,
+                      layers: {
+                        housing: true,
+                        outer: true,
+                        outline: true,
+                        name: true,
+                      },
+                      ...(params.productType === "monogram"
+                        ? {
+                            lengthMm: 72,
+                            totalThicknessMm: 3,
+                            nameRaiseMm: 0.8,
+                            outlineRaiseMm: 0.6,
+                          }
+                        : {}),
                       ...(productType === "clicker-v2"
                         ? {
                             clickerLetterGapMm: 0.4,
@@ -201,34 +223,90 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                           }
                         : {}),
                     }
-                  : {}),
+                  : isMonogramProduct(productType) && params.productType !== "monogram"
+                    ? {
+                        fontId: "cinzel",
+                        scriptFontId: "pacifico",
+                        lengthMm: 90,
+                        totalThicknessMm: 14,
+                        nameRaiseMm: 1.4,
+                        outlineRaiseMm: 0.9,
+                        outlineWidthMm: 2.4,
+                        monogramStandMm: 8,
+                        monogramScriptAngleDeg: 18,
+                        name: params.name || "Michael",
+                        layers: { housing: false, outer: true, outline: true, name: true },
+                        colors: {
+                          ...params.colors,
+                          outer: "#F7F7F5",
+                          outline: "#E8E8E6",
+                          name: "#2FA84F",
+                        },
+                      }
+                    : productType === "keychain" && params.productType === "monogram"
+                      ? {
+                          lengthMm: 72,
+                          totalThicknessMm: 3,
+                          nameRaiseMm: 0.8,
+                          outlineRaiseMm: 0.6,
+                          layers: {
+                            housing: true,
+                            outer: true,
+                            outline: true,
+                            name: true,
+                          },
+                        }
+                      : {}),
               })
             }
           />
         </Field>
         <Field
-          label={clicker && !connected ? "Letters" : "Names"}
+          label={monogram ? "Script name" : clicker && !connected ? "Letters" : "Names"}
           value={`${params.name.split(",").filter((part) => part.trim()).length || 1} on bed`}
         >
           <textarea
             value={params.name}
             onChange={(e) => onChange({ name: e.target.value })}
             placeholder={
-              connected ? "MICHAEL, ALEX" : clicker ? "M, A, S" : "MICHAEL, ALEX, SAM"
+              monogram
+                ? "Michael, Alex"
+                : connected
+                  ? "MICHAEL, ALEX"
+                  : clicker
+                    ? "M, A, S"
+                    : "MICHAEL, ALEX, SAM"
             }
             rows={4}
             className="w-full resize-y rounded-lg border border-line bg-ink px-3 py-2.5 text-base leading-relaxed outline-none ring-accent/40 focus:ring-2"
           />
           <p className="text-[11px] leading-relaxed text-muted">
-            {clickerV2
-              ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
-              : connected
-                ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
-                : clicker
-                  ? "One letter per clicker works best. Separate with commas to print a set."
-                  : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
+            {monogram
+              ? "Small writing across the big letter. Commas print more than one stand. The big letter defaults to the first letter of each name."
+              : clickerV2
+                ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
+                : connected
+                  ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
+                  : clicker
+                    ? "One letter per clicker works best. Separate with commas to print a set."
+                    : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
           </p>
         </Field>
+        {monogram && (
+          <Field label="Big letter">
+            <input
+              type="text"
+              maxLength={1}
+              value={params.monogramLetter}
+              onChange={(e) => onChange({ monogramLetter: e.target.value.slice(0, 1) })}
+              placeholder="Auto from name"
+              className="w-full rounded-lg border border-line bg-ink px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
+            />
+            <p className="text-[11px] leading-relaxed text-muted">
+              Leave blank to use the first letter of each script name.
+            </p>
+          </Field>
+        )}
         <Field label="Text case">
           <ChipRow
             value={params.textCase}
@@ -236,23 +314,48 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             onChange={(textCase) => onChange({ textCase })}
           />
         </Field>
-        <Field label="Font">
+        <Field label={monogram ? "Big letter font" : "Font"}>
           <select
             value={params.fontId}
             onChange={(e) => onChange({ fontId: e.target.value })}
             className="w-full rounded-lg border border-line bg-ink px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
           >
-            {(["sans", "serif", "display", "script", "mono"] as const).map((style) => (
-              <optgroup key={style} label={style.toUpperCase()}>
-                {FONTS.filter((f) => f.style === style).map((font) => (
-                  <option key={font.id} value={font.id}>
-                    {font.name} — {font.designer}
-                  </option>
+            {monogram
+              ? (["serif", "display", "sans"] as const).map((style) => (
+                  <optgroup key={style} label={style.toUpperCase()}>
+                    {LETTER_FONTS.filter((f) => f.style === style).map((font) => (
+                      <option key={font.id} value={font.id}>
+                        {font.name} — {font.designer}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))
+              : (["sans", "serif", "display", "script", "mono"] as const).map((style) => (
+                  <optgroup key={style} label={style.toUpperCase()}>
+                    {FONTS.filter((f) => f.style === style).map((font) => (
+                      <option key={font.id} value={font.id}>
+                        {font.name} — {font.designer}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
-              </optgroup>
-            ))}
           </select>
         </Field>
+        {monogram && (
+          <Field label="Script font">
+            <select
+              value={params.scriptFontId}
+              onChange={(e) => onChange({ scriptFontId: e.target.value })}
+              className="w-full rounded-lg border border-line bg-ink px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
+            >
+              {SCRIPT_FONTS.map((font) => (
+                <option key={font.id} value={font.id}>
+                  {font.name} — {font.designer}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
       </section>
 
       <section className="space-y-3">
@@ -273,24 +376,36 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           <>
             <LayerCard
               id="outer"
-              title={clicker ? "Keycap" : "Outer outline"}
-              hint={clicker ? "Cap body that mounts on the +" : "Base plate + ring hole"}
+              title={monogram ? "Letter stand" : clicker ? "Keycap" : "Outer outline"}
+              hint={
+                monogram
+                  ? "Big letter body and desk foot"
+                  : clicker
+                    ? "Cap body that mounts on the +"
+                    : "Base plate + ring hole"
+              }
               params={params}
               onLayer={onLayer}
               onColor={onColor}
             />
             <LayerCard
               id="outline"
-              title={clicker ? "Cap outline" : "Inner outline"}
-              hint={clicker ? "Raised frame on the cap" : "Raised frame around the name"}
+              title={monogram ? "Letter rim" : clicker ? "Cap outline" : "Inner outline"}
+              hint={
+                monogram
+                  ? "Raised border on the letter face"
+                  : clicker
+                    ? "Raised frame on the cap"
+                    : "Raised frame around the name"
+              }
               params={params}
               onLayer={onLayer}
               onColor={onColor}
             />
             <LayerCard
               id="name"
-              title={clicker ? "Letter" : "Name"}
-              hint="Raised lettering"
+              title={monogram ? "Script" : clicker ? "Letter" : "Name"}
+              hint={monogram ? "Small writing across the face" : "Raised lettering"}
               params={params}
               onLayer={onLayer}
               onColor={onColor}
@@ -476,52 +591,125 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
         </section>
       )}
 
-      {!clicker && <section className="space-y-4">
-        <Field label="Length" value={`${params.lengthMm.toFixed(1)} mm`}>
-          <input
-            type="range"
-            min={28}
-            max={160}
-            step={0.5}
-            value={params.lengthMm}
-            onChange={(e) => onChange({ lengthMm: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Total thickness" value={`${params.totalThicknessMm.toFixed(2)} mm`}>
-          <input
-            type="range"
-            min={1.6}
-            max={8}
-            step={0.1}
-            value={params.totalThicknessMm}
-            onChange={(e) => onChange({ totalThicknessMm: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Name raise" value={`${params.nameRaiseMm.toFixed(2)} mm`}>
-          <input
-            type="range"
-            min={0.2}
-            max={2.4}
-            step={0.05}
-            value={params.nameRaiseMm}
-            onChange={(e) => onChange({ nameRaiseMm: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Outline raise" value={`${params.outlineRaiseMm.toFixed(2)} mm`}>
-          <input
-            type="range"
-            min={0.2}
-            max={2.4}
-            step={0.05}
-            value={params.outlineRaiseMm}
-            onChange={(e) => onChange({ outlineRaiseMm: Number(e.target.value) })}
-          />
-        </Field>
-        <p className="text-[11px] leading-relaxed text-muted">
-          Base plate uses the leftover thickness so the finished part matches the total.
-          Height scales with the name so the plate stays proportionate.
-        </p>
-      </section>}
+      {!clicker && !monogram && (
+        <section className="space-y-4">
+          <Field label="Length" value={`${params.lengthMm.toFixed(1)} mm`}>
+            <input
+              type="range"
+              min={28}
+              max={160}
+              step={0.5}
+              value={params.lengthMm}
+              onChange={(e) => onChange({ lengthMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Total thickness" value={`${params.totalThicknessMm.toFixed(2)} mm`}>
+            <input
+              type="range"
+              min={1.6}
+              max={8}
+              step={0.1}
+              value={params.totalThicknessMm}
+              onChange={(e) => onChange({ totalThicknessMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Name raise" value={`${params.nameRaiseMm.toFixed(2)} mm`}>
+            <input
+              type="range"
+              min={0.2}
+              max={2.4}
+              step={0.05}
+              value={params.nameRaiseMm}
+              onChange={(e) => onChange({ nameRaiseMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Outline raise" value={`${params.outlineRaiseMm.toFixed(2)} mm`}>
+            <input
+              type="range"
+              min={0.2}
+              max={2.4}
+              step={0.05}
+              value={params.outlineRaiseMm}
+              onChange={(e) => onChange({ outlineRaiseMm: Number(e.target.value) })}
+            />
+          </Field>
+          <p className="text-[11px] leading-relaxed text-muted">
+            Base plate uses the leftover thickness so the finished part matches the total.
+            Height scales with the name so the plate stays proportionate.
+          </p>
+        </section>
+      )}
+
+      {monogram && (
+        <section className="space-y-4">
+          <Field label="Letter height" value={`${params.lengthMm.toFixed(0)} mm`}>
+            <input
+              type="range"
+              min={40}
+              max={160}
+              step={1}
+              value={params.lengthMm}
+              onChange={(e) => onChange({ lengthMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Letter depth" value={`${params.totalThicknessMm.toFixed(1)} mm`}>
+            <input
+              type="range"
+              min={8}
+              max={28}
+              step={0.5}
+              value={params.totalThicknessMm}
+              onChange={(e) => onChange({ totalThicknessMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Stand height" value={`${params.monogramStandMm.toFixed(1)} mm`}>
+            <input
+              type="range"
+              min={4}
+              max={20}
+              step={0.5}
+              value={params.monogramStandMm}
+              onChange={(e) => onChange({ monogramStandMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Script angle" value={`${params.monogramScriptAngleDeg.toFixed(0)}°`}>
+            <input
+              type="range"
+              min={0}
+              max={35}
+              step={1}
+              value={params.monogramScriptAngleDeg}
+              onChange={(e) => onChange({ monogramScriptAngleDeg: Number(e.target.value) })}
+            />
+          </Field>
+          <p className="text-[11px] leading-relaxed text-muted">
+            Tilts the writing from the lower left toward the upper right across the letter.
+          </p>
+          <Field label="Script raise" value={`${params.nameRaiseMm.toFixed(2)} mm`}>
+            <input
+              type="range"
+              min={0.4}
+              max={3.2}
+              step={0.05}
+              value={params.nameRaiseMm}
+              onChange={(e) => onChange({ nameRaiseMm: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Rim raise" value={`${params.outlineRaiseMm.toFixed(2)} mm`}>
+            <input
+              type="range"
+              min={0.2}
+              max={2.4}
+              step={0.05}
+              value={params.outlineRaiseMm}
+              onChange={(e) => onChange({ outlineRaiseMm: Number(e.target.value) })}
+            />
+          </Field>
+          <p className="text-[11px] leading-relaxed text-muted">
+            Big letter sits on a desk foot. Script and rim print on the front face for multi-color AMS.
+          </p>
+        </section>
+      )}
 
       {clicker && (
         <section className="space-y-4">
@@ -588,7 +776,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
         </section>
       )}
 
-      {!clicker && (
+      {!clicker && !monogram && (
       <section className="space-y-3">
         <Field label="Keychain type">
           <ChipRow
@@ -614,6 +802,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
       </section>
       )}
 
+      {!monogram && (
       <section className="space-y-3">
         <Field label={clicker ? "Housing ring" : "Ring placement"}>
           <ChipRow
@@ -654,9 +843,10 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           />
         </Field>
       </section>
+      )}
 
       <section className="space-y-4">
-        {!clicker && params.keychainType === "plate" && (
+        {!clicker && !monogram && params.keychainType === "plate" && (
           <Field label="Corner radius" value={`${params.cornerRadiusMm.toFixed(1)} mm`}>
             <input
               type="range"
@@ -668,26 +858,31 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             />
           </Field>
         )}
+        {!monogram && (
+          <Field
+            label={
+              clicker
+                ? "Letter padding"
+                : params.keychainType === "cloud"
+                  ? "Cloud puff"
+                  : "Text padding"
+            }
+            value={`${params.platePaddingMm.toFixed(1)} mm`}
+          >
+            <input
+              type="range"
+              min={1.2}
+              max={10}
+              step={0.1}
+              value={params.platePaddingMm}
+              onChange={(e) => onChange({ platePaddingMm: Number(e.target.value) })}
+            />
+          </Field>
+        )}
         <Field
-          label={
-            clicker
-              ? "Letter padding"
-              : params.keychainType === "cloud"
-                ? "Cloud puff"
-                : "Text padding"
-          }
-          value={`${params.platePaddingMm.toFixed(1)} mm`}
+          label={monogram ? "Rim width" : "Outline width"}
+          value={`${params.outlineWidthMm.toFixed(1)} mm`}
         >
-          <input
-            type="range"
-            min={1.2}
-            max={10}
-            step={0.1}
-            value={params.platePaddingMm}
-            onChange={(e) => onChange({ platePaddingMm: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Outline width" value={`${params.outlineWidthMm.toFixed(1)} mm`}>
           <input
             type="range"
             min={0.8}
@@ -707,7 +902,10 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             onChange={(e) => onChange({ bedGapMm: Number(e.target.value) })}
           />
         </Field>
-        <Field label="Letter spacing" value={`${params.letterSpacing.toFixed(1)}`}>
+        <Field
+          label={monogram ? "Script spacing" : "Letter spacing"}
+          value={`${params.letterSpacing.toFixed(1)}`}
+        >
           <input
             type="range"
             min={-4}
