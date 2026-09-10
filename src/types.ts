@@ -1,4 +1,4 @@
-export type ProductType = "keychain" | "clicker" | "clicker-v2" | "monogram";
+export type ProductType = "keychain" | "clicker" | "clicker-v2" | "monogram" | "nameplate";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
@@ -72,6 +72,15 @@ export function isClickerV2(productType: ProductType) {
 
 export function isMonogramProduct(productType: ProductType) {
   return productType === "monogram";
+}
+
+export function isNameplateProduct(productType: ProductType) {
+  return productType === "nameplate";
+}
+
+/** Keychain and desk name plate share the plate + raised-name builder. */
+export function isPlateProduct(productType: ProductType) {
+  return productType === "keychain" || productType === "nameplate";
 }
 
 export interface BuiltPart {

@@ -5,6 +5,7 @@ import {
   isClickerProduct,
   isClickerV2,
   isMonogramProduct,
+  isNameplateProduct,
   type ClickerLayout,
   type KeychainParams,
   type KeychainType,
@@ -25,6 +26,7 @@ interface ControlsProps {
 
 const PRODUCTS: { id: ProductType; label: string }[] = [
   { id: "keychain", label: "Keychain" },
+  { id: "nameplate", label: "Name plate" },
   { id: "clicker", label: "Clicker" },
   { id: "clicker-v2", label: "Clicker v2" },
   { id: "monogram", label: "Letter stand" },
@@ -182,6 +184,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
   const clicker = isClickerProduct(params.productType);
   const clickerV2 = isClickerV2(params.productType);
   const monogram = isMonogramProduct(params.productType);
+  const nameplate = isNameplateProduct(params.productType);
   const connected = clicker && (clickerV2 || params.clickerLayout === "connected");
   return (
     <div className="scrollbar-thin flex h-full flex-col gap-6 overflow-y-auto p-5">
@@ -206,12 +209,20 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                         outline: true,
                         name: true,
                       },
-                      ...(params.productType === "monogram"
+                      ...(params.productType === "monogram" || params.productType === "nameplate"
                         ? {
                             lengthMm: 72,
                             totalThicknessMm: 3,
                             nameRaiseMm: 0.8,
                             outlineRaiseMm: 0.6,
+                            platePaddingMm: 3.6,
+                            outlineWidthMm: 1.8,
+                            colors: {
+                              housing: "#2A2E33",
+                              outer: "#C45C26",
+                              outline: "#1B1B1B",
+                              name: "#F4EFE6",
+                            },
                           }
                         : {}),
                       ...(productType === "clicker-v2"
@@ -243,20 +254,53 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                           name: "#2FA84F",
                         },
                       }
-                    : productType === "keychain" && params.productType === "monogram"
+                    : isNameplateProduct(productType) && params.productType !== "nameplate"
                       ? {
-                          lengthMm: 72,
-                          totalThicknessMm: 3,
-                          nameRaiseMm: 0.8,
-                          outlineRaiseMm: 0.6,
-                          layers: {
-                            housing: true,
-                            outer: true,
-                            outline: true,
-                            name: true,
+                          keychainType: "plate" as const,
+                          shape: "rounded-rect" as const,
+                          ringPosition: "none" as const,
+                          lengthMm: 140,
+                          totalThicknessMm: 4.5,
+                          nameRaiseMm: 1.1,
+                          outlineRaiseMm: 0.8,
+                          outlineWidthMm: 2,
+                          platePaddingMm: 5.5,
+                          cornerRadiusMm: 4,
+                          fontId: params.fontId === "cinzel" ? "montserrat" : params.fontId,
+                          name: params.name || "MICHAEL",
+                          layers: { housing: false, outer: true, outline: true, name: true },
+                          colors: {
+                            ...params.colors,
+                            outer: "#1C3D5A",
+                            outline: "#D4AF37",
+                            name: "#F4EFE6",
                           },
                         }
-                      : {}),
+                      : productType === "keychain" &&
+                          (params.productType === "monogram" || params.productType === "nameplate")
+                        ? {
+                            lengthMm: 72,
+                            totalThicknessMm: 3,
+                            nameRaiseMm: 0.8,
+                            outlineRaiseMm: 0.6,
+                            platePaddingMm: 3.6,
+                            outlineWidthMm: 1.8,
+                            cornerRadiusMm: 3.2,
+                            ringPosition: "left" as const,
+                            layers: {
+                              housing: true,
+                              outer: true,
+                              outline: true,
+                              name: true,
+                            },
+                            colors: {
+                              housing: "#2A2E33",
+                              outer: "#C45C26",
+                              outline: "#1B1B1B",
+                              name: "#F4EFE6",
+                            },
+                          }
+                        : {}),
               })
             }
           />
@@ -271,11 +315,13 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             placeholder={
               monogram
                 ? "Michael, Alex"
-                : connected
+                : nameplate
                   ? "MICHAEL, ALEX"
-                  : clicker
-                    ? "M, A, S"
-                    : "MICHAEL, ALEX, SAM"
+                  : connected
+                    ? "MICHAEL, ALEX"
+                    : clicker
+                      ? "M, A, S"
+                      : "MICHAEL, ALEX, SAM"
             }
             rows={4}
             className="w-full resize-y rounded-lg border border-line bg-ink px-3 py-2.5 text-base leading-relaxed outline-none ring-accent/40 focus:ring-2"
@@ -283,13 +329,15 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           <p className="text-[11px] leading-relaxed text-muted">
             {monogram
               ? "Small writing across the big letter. Commas print more than one stand. The big letter defaults to the first letter of each name."
-              : clickerV2
-                ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
-                : connected
-                  ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
-                  : clicker
-                    ? "One letter per clicker works best. Separate with commas to print a set."
-                    : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
+              : nameplate
+                ? "Long desk plate with raised name — no key ring. Commas print more than one plate."
+                : clickerV2
+                  ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
+                  : connected
+                    ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
+                    : clicker
+                      ? "One letter per clicker works best. Separate with commas to print a set."
+                      : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
           </p>
         </Field>
         {monogram && (
@@ -376,13 +424,23 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           <>
             <LayerCard
               id="outer"
-              title={monogram ? "Letter stand" : clicker ? "Keycap" : "Outer outline"}
+              title={
+                monogram
+                  ? "Letter stand"
+                  : nameplate
+                    ? "Desk plate"
+                    : clicker
+                      ? "Keycap"
+                      : "Outer outline"
+              }
               hint={
                 monogram
                   ? "Big letter body and desk foot"
-                  : clicker
-                    ? "Cap body that mounts on the +"
-                    : "Base plate + ring hole"
+                  : nameplate
+                    ? "Solid base that sits on the desk"
+                    : clicker
+                      ? "Cap body that mounts on the +"
+                      : "Base plate + ring hole"
               }
               params={params}
               onLayer={onLayer}
@@ -390,7 +448,15 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             />
             <LayerCard
               id="outline"
-              title={monogram ? "Letter rim" : clicker ? "Cap outline" : "Inner outline"}
+              title={
+                monogram
+                  ? "Letter rim"
+                  : nameplate
+                    ? "Plate frame"
+                    : clicker
+                      ? "Cap outline"
+                      : "Inner outline"
+              }
               hint={
                 monogram
                   ? "Raised border on the letter face"
@@ -593,11 +659,14 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
 
       {!clicker && !monogram && (
         <section className="space-y-4">
-          <Field label="Length" value={`${params.lengthMm.toFixed(1)} mm`}>
+          <Field
+            label={nameplate ? "Plate length" : "Length"}
+            value={`${params.lengthMm.toFixed(1)} mm`}
+          >
             <input
               type="range"
-              min={28}
-              max={160}
+              min={nameplate ? 60 : 28}
+              max={nameplate ? 220 : 160}
               step={0.5}
               value={params.lengthMm}
               onChange={(e) => onChange({ lengthMm: Number(e.target.value) })}
@@ -606,8 +675,8 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           <Field label="Total thickness" value={`${params.totalThicknessMm.toFixed(2)} mm`}>
             <input
               type="range"
-              min={1.6}
-              max={8}
+              min={nameplate ? 2.4 : 1.6}
+              max={nameplate ? 10 : 8}
               step={0.1}
               value={params.totalThicknessMm}
               onChange={(e) => onChange({ totalThicknessMm: Number(e.target.value) })}
@@ -634,8 +703,9 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             />
           </Field>
           <p className="text-[11px] leading-relaxed text-muted">
-            Base plate uses the leftover thickness so the finished part matches the total.
-            Height scales with the name so the plate stays proportionate.
+            {nameplate
+              ? "Thicker base for desk use. Length sets how wide the plate reads; height follows the name."
+              : "Base plate uses the leftover thickness so the finished part matches the total. Height scales with the name so the plate stays proportionate."}
           </p>
         </section>
       )}
@@ -776,7 +846,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
         </section>
       )}
 
-      {!clicker && !monogram && (
+      {!clicker && !monogram && !nameplate && (
       <section className="space-y-3">
         <Field label="Keychain type">
           <ChipRow
@@ -802,7 +872,22 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
       </section>
       )}
 
-      {!monogram && (
+      {nameplate && (
+        <section className="space-y-3">
+          <Field label="Plate shape">
+            <ChipRow
+              value={params.shape}
+              options={SHAPES.filter((s) => s.id !== "circle" && s.id !== "tag")}
+              onChange={(shape) => onChange({ shape })}
+            />
+          </Field>
+          <p className="text-[11px] leading-relaxed text-muted">
+            Desk name plates print flat with no key ring. Rounded or pill works best for office use.
+          </p>
+        </section>
+      )}
+
+      {!monogram && !nameplate && (
       <section className="space-y-3">
         <Field label={clicker ? "Housing ring" : "Ring placement"}>
           <ChipRow
@@ -846,7 +931,7 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
       )}
 
       <section className="space-y-4">
-        {!clicker && !monogram && params.keychainType === "plate" && (
+        {!clicker && !monogram && (nameplate || params.keychainType === "plate") && (
           <Field label="Corner radius" value={`${params.cornerRadiusMm.toFixed(1)} mm`}>
             <input
               type="range"
@@ -863,9 +948,11 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             label={
               clicker
                 ? "Letter padding"
-                : params.keychainType === "cloud"
-                  ? "Cloud puff"
-                  : "Text padding"
+                : nameplate
+                  ? "Text padding"
+                  : params.keychainType === "cloud"
+                    ? "Cloud puff"
+                    : "Text padding"
             }
             value={`${params.platePaddingMm.toFixed(1)} mm`}
           >

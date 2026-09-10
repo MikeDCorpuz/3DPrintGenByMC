@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
-import { isClickerProduct, isMonogramProduct } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
 const LAYER_LABEL: Record<LayerId, string> = {
@@ -16,6 +16,11 @@ function layerLabel(layer: LayerId, productType: KeychainParams["productType"]) 
     if (layer === "outer") return "Letter stand";
     if (layer === "outline") return "Letter rim";
     if (layer === "name") return "Script";
+  }
+  if (isNameplateProduct(productType)) {
+    if (layer === "outer") return "Desk plate";
+    if (layer === "outline") return "Plate frame";
+    if (layer === "name") return "Name";
   }
   if (!isClickerProduct(productType)) return LAYER_LABEL[layer];
   if (layer === "outer") return "Keycap";
@@ -189,9 +194,11 @@ ${components}
 
   const noun = isMonogramProduct(params.productType)
     ? "letter stand"
-    : isClickerProduct(params.productType)
-      ? "clicker"
-      : "keychain";
+    : isNameplateProduct(params.productType)
+      ? "name plate"
+      : isClickerProduct(params.productType)
+        ? "clicker"
+        : "keychain";
   const title = batch.items.length === 1
     ? `${batch.items[0].label} ${noun}`
     : `${batch.items.length} ${noun}s`;
@@ -206,9 +213,11 @@ ${components}
   <metadata name="Description">${
     isMonogramProduct(params.productType)
       ? "Multi-color letter stand with desk foot and script writing. Each layer is a separate color group for Bambu Studio AMS."
-      : isClickerProduct(params.productType)
-        ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
-        : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
+      : isNameplateProduct(params.productType)
+        ? "Multi-color desk name plate with raised lettering. Each layer is a separate color group for Bambu Studio AMS."
+        : isClickerProduct(params.productType)
+          ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
+          : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
   }</metadata>
   <resources>
 ${groups}
@@ -282,7 +291,9 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
         ? "clicker"
         : params.productType === "monogram"
           ? "letter-stand"
-          : "keychain";
+          : params.productType === "nameplate"
+            ? "name-plate"
+            : "keychain";
   const filename = `${fileSlug(batch) || suffix}-${suffix}.3mf`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

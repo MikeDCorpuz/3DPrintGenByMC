@@ -21,6 +21,7 @@ import {
   isClickerProduct,
   isClickerV2,
   isMonogramProduct,
+  isNameplateProduct,
   type BuiltBatch,
   type KeychainParams,
   type LayerId,
@@ -141,7 +142,9 @@ export default function App() {
         ? "map Housing / Keycap / Outline / Letter to your AMS slots"
         : isMonogramProduct(params.productType)
           ? "map Letter stand / Rim / Script to your AMS slots"
-          : "map Outer / Outline / Name to your AMS slots";
+          : isNameplateProduct(params.productType)
+            ? "map Desk plate / Frame / Name to your AMS slots"
+            : "map Outer / Outline / Name to your AMS slots";
       setExportNote(
         `Saved ${filename}. In Bambu Studio use File → Open (not geometry-only). If a color dialog appears, ${mapHint}. If a letter shows open edges or gaps, right-click the model → Fix Model.`,
       );
@@ -154,11 +157,13 @@ export default function App() {
 
   const noun = isMonogramProduct(params.productType)
     ? "letter stand"
-    : isClickerProduct(params.productType)
-      ? isClickerV2(params.productType)
-        ? "clicker v2"
-        : "clicker"
-      : "keychain";
+    : isNameplateProduct(params.productType)
+      ? "name plate"
+      : isClickerProduct(params.productType)
+        ? isClickerV2(params.productType)
+          ? "clicker v2"
+          : "clicker"
+        : "keychain";
   const previewTitle =
     names.length === 1 ? names[0] : `${names.length} ${noun}s`;
 
@@ -172,13 +177,15 @@ export default function App() {
           <p className="mt-1 text-xs leading-relaxed text-muted">
             {isMonogramProduct(params.productType)
               ? "One big letter with a desk stand and script writing across the face. Comma-separate names to print a set."
-              : isClickerV2(params.productType)
-                ? "Linked name-bar clicker with a left ring. Comma-separate names to print a set."
-                : isClickerProduct(params.productType)
-                  ? params.clickerLayout === "connected"
-                    ? "Ring on the left, letters join along the bottom to spell the name. Comma-separate names to print a set."
-                    : "Design a switch housing and a custom MX keycap. Comma-separate letters to fill a 256 × 256 mm bed."
-                  : "Comma-separate names to fill a 256 × 256 mm bed. Preview the batch, then send one multi-body .3mf to your slicer."}
+              : isNameplateProduct(params.productType)
+                ? "Long desk name plate with raised lettering — no key ring. Comma-separate names to print a set."
+                : isClickerV2(params.productType)
+                  ? "Linked name-bar clicker with a left ring. Comma-separate names to print a set."
+                  : isClickerProduct(params.productType)
+                    ? params.clickerLayout === "connected"
+                      ? "Ring on the left, letters join along the bottom to spell the name. Comma-separate names to print a set."
+                      : "Design a switch housing and a custom MX keycap. Comma-separate letters to fill a 256 × 256 mm bed."
+                    : "Comma-separate names to fill a 256 × 256 mm bed. Preview the batch, then send one multi-body .3mf to your slicer."}
           </p>
           <div className="mt-3">
             <StatsBar stats={stats} />
@@ -251,7 +258,7 @@ export default function App() {
                 {batch.overflow.length === 1 ? "" : "s"} did not fit:
                 {" "}
                 {batch.overflow.join(", ")}. Reduce spacing
-                {params.productType === "keychain"
+                {params.productType === "keychain" || params.productType === "nameplate"
                   ? " or length"
                   : isMonogramProduct(params.productType)
                     ? " or letter height"

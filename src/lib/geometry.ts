@@ -2,7 +2,7 @@ import { Box3, BufferGeometry, Vector3 } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
-import { isClickerProduct, isMonogramProduct } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
 import { letterOutersMm, letterShapesMm, shapesBounds, textShapes } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
@@ -88,6 +88,7 @@ export function layerHeights(params: KeychainParams) {
 }
 
 export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain {
+  const nameplate = isNameplateProduct(params.productType);
   const text = formatName(params.name, params.textCase);
   const heights = layerHeights(params);
   const samples = Math.max(20, params.curveSegments);
@@ -98,20 +99,23 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   }
   const rawBox = shapesBounds(rawShapes);
 
-  const ringOn = params.ringPosition !== "none";
+  // Desk plates never get a key ring; always a solid plate (not text-cloud).
+  const ringPosition = nameplate ? "none" : params.ringPosition;
+  const ringOn = ringPosition !== "none";
   const holeR = params.ringDiameterMm / 2;
   const ringBand = ringOn ? params.ringDiameterMm + params.ringMarginMm * 2 : 0;
-  const sideRing = ringOn && (params.ringPosition === "left" || params.ringPosition === "right");
-  const endRing = ringOn && (params.ringPosition === "top" || params.ringPosition === "bottom");
+  const sideRing = ringOn && (ringPosition === "left" || ringPosition === "right");
+  const endRing = ringOn && (ringPosition === "top" || ringPosition === "bottom");
 
   const outlineW = params.layers.outline ? params.outlineWidthMm : 0;
   const pad = params.platePaddingMm;
-  const cloud = params.keychainType === "cloud";
+  const cloud = !nameplate && params.keychainType === "cloud";
   const extras = cloud
     ? cloudScaleExtras(params)
     : { extraX: pad * 2 + outlineW * 2 + (sideRing ? ringBand : 0) };
 
-  const targetLength = Math.max(18, extras.extraX + 8, params.lengthMm);
+  const minLength = nameplate ? 60 : 18;
+  const targetLength = Math.max(minLength, extras.extraX + 8, params.lengthMm);
   const textScale = (targetLength - extras.extraX) / rawBox.width;
   const textW = rawBox.width * textScale;
   const textH = rawBox.height * textScale;
@@ -126,19 +130,19 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
 
   const textOffsetX = cloud
     ? 0
-    : (params.ringPosition === "left" ? ringBand / 2 : 0) +
-      (params.ringPosition === "right" ? -ringBand / 2 : 0);
+    : (ringPosition === "left" ? ringBand / 2 : 0) +
+      (ringPosition === "right" ? -ringBand / 2 : 0);
   const textOffsetY = cloud
     ? 0
-    : (params.ringPosition === "top" ? -ringBand / 2 : 0) +
-      (params.ringPosition === "bottom" ? ringBand / 2 : 0);
+    : (ringPosition === "top" ? -ringBand / 2 : 0) +
+      (ringPosition === "bottom" ? ringBand / 2 : 0);
 
   const cx = (rawBox.minX + rawBox.maxX) / 2;
   const cy = (rawBox.minY + rawBox.maxY) / 2;
   const mmShapes = letterShapesMm(rawShapes, textScale, cx, cy, samples);
 
   const parts: BuiltPart[] = [];
-  const ring = ringCenter(params.ringPosition, plateW, plateH, holeR, params.ringMarginMm);
+  const ring = ringCenter(ringPosition, plateW, plateH, holeR, params.ringMarginMm);
 
   if (cloud) {
     if (!mmShapes.length) {
@@ -151,7 +155,7 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
     const geo = extrudeSolid(plate, heights.outer, Math.max(32, samples));
     parts.push({
       id: "outer",
-      name: "Outer plate",
+      name: nameplate ? "Desk plate" : "Outer plate",
       color: params.colors.outer,
       geometry: geo,
     });
@@ -175,7 +179,7 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
     geo.translate(textOffsetX, textOffsetY, 0);
     parts.push({
       id: "outline",
-      name: "Inner outline",
+      name: nameplate ? "Plate frame" : "Inner outline",
       color: params.colors.outline,
       geometry: geo,
     });
@@ -210,7 +214,11 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   }
 
   if (!parts.length) {
-    throw new Error("Turn on at least one layer to build a keychain.");
+    throw new Error(
+      nameplate
+        ? "Turn on at least one layer to build a desk name plate."
+        : "Turn on at least one layer to build a keychain.",
+    );
   }
 
   for (const part of parts) {
@@ -287,7 +295,9 @@ export function buildBatch(font: Font, params: KeychainParams, scriptFont?: Font
         ? "None of the clickers fit on the 256 × 256 mm bed. Reduce spacing or the letter list."
         : isMonogramProduct(params.productType)
           ? "None of the letter stands fit on the 256 × 256 mm bed. Reduce height or the name list."
-          : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
+          : isNameplateProduct(params.productType)
+            ? "None of the name plates fit on the 256 × 256 mm bed. Reduce length or the name list."
+            : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
     );
   }
 
