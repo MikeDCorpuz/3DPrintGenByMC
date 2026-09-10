@@ -180,6 +180,8 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   }
 
   if (params.layers.name && heights.name > 0) {
+    const letters = [...text].filter((ch) => !/\s/.test(ch));
+    let letterIndex = 0;
     for (const shape of mmShapes) {
       const geo = extrudeSolid(shape, Math.max(0.6, heights.name), samples);
       const pos = geo.getAttribute("position");
@@ -187,11 +189,14 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
         geo.dispose();
         continue;
       }
+      const label = letters[letterIndex] ?? "Name";
+      letterIndex += 1;
       geo.translate(textOffsetX, textOffsetY, 0);
-      lift(geo, heights.baseZ);
+      // Sit just above the plate top so letter bottoms aren't coplanar with it.
+      lift(geo, heights.baseZ + 0.05);
       parts.push({
         id: "name",
-        name: "Name",
+        name: `Letter ${label}`,
         color: params.colors.name,
         geometry: geo,
       });

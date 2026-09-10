@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Controls } from "./components/Controls";
 import { Preview } from "./components/Preview";
+import { SupportBanner } from "./components/SupportBanner";
 import { export3mf } from "./lib/export3mf";
 import { loadFont } from "./lib/fontCache";
 import { buildBatch, disposeBatch } from "./lib/geometry";
@@ -112,6 +113,7 @@ export default function App() {
               : "Comma-separate names to fill a 256 × 256 mm bed. Preview the batch, then send one multi-body .3mf to your slicer."}
           </p>
         </header>
+        <SupportBanner />
         <div className="min-h-0 flex-1">
           <Controls params={params} onChange={patch} onColor={onColor} onLayer={onLayer} />
         </div>
