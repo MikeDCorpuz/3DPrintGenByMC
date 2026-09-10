@@ -85,7 +85,7 @@ export default function App() {
           ? "map Housing / Keycap / Outline / Letter to your AMS slots"
           : "map Outer / Outline / Name to your AMS slots";
       setExportNote(
-        `Saved ${filename}. In Bambu Studio use File → Open (not geometry-only). If a color dialog appears, ${mapHint}.`,
+        `Saved ${filename}. In Bambu Studio use File → Open (not geometry-only). If a color dialog appears, ${mapHint}. If a letter shows open edges or gaps, right-click the model → Fix Model.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed.");
@@ -193,6 +193,11 @@ export default function App() {
                 {exportNote}
               </div>
             )}
+            <div className="rounded-xl border border-line/80 bg-panel/90 px-3 py-2 text-[11px] leading-relaxed text-muted backdrop-blur">
+              <span className="font-medium text-paper/80">Disclaimer:</span> some text-to-geometry
+              conversions leave open gaps. In Bambu Studio, right-click the model →{" "}
+              <span className="text-paper/90">Fix Model</span> to close them, then slice.
+            </div>
             <button
               type="button"
               onClick={download}
