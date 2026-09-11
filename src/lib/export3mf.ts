@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
 import { repairGeometriesPreserveAll } from "./repairMesh";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
@@ -21,6 +21,11 @@ function layerLabel(layer: LayerId, productType: KeychainParams["productType"]) 
   if (isNameplateProduct(productType)) {
     if (layer === "outer") return "Desk plate";
     if (layer === "outline") return "Plate frame";
+    if (layer === "name") return "Name";
+  }
+  if (isPetTagProduct(productType)) {
+    if (layer === "outer") return "Pet tag";
+    if (layer === "outline") return "Tag rim";
     if (layer === "name") return "Name";
   }
   if (!isClickerProduct(productType)) return LAYER_LABEL[layer];
@@ -218,9 +223,11 @@ ${components}
     ? "letter stand"
     : isNameplateProduct(params.productType)
       ? "name plate"
-      : isClickerProduct(params.productType)
-        ? "clicker"
-        : "keychain";
+      : isPetTagProduct(params.productType)
+        ? "pet tag"
+        : isClickerProduct(params.productType)
+          ? "clicker"
+          : "keychain";
   const title = batch.items.length === 1
     ? `${batch.items[0].label} ${noun}`
     : `${batch.items.length} ${noun}s`;
@@ -229,7 +236,7 @@ ${components}
 <model unit="millimeter" xml:lang="en-US" requiredextensions="m"
   xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02"
   xmlns:m="http://schemas.microsoft.com/3dmanufacturing/material/2015/02">
-  <metadata name="Application">Keychain Maker by Mike Corpuz</metadata>
+  <metadata name="Application">Parametric by Mike Corpuz — 3D Print Studio</metadata>
   <metadata name="Title">${escapeXml(title)}</metadata>
   <metadata name="Designer">Mike Corpuz</metadata>
   <metadata name="Description">${
@@ -237,9 +244,11 @@ ${components}
       ? "Multi-color letter stand with desk foot and script writing. Each layer is a separate color group for Bambu Studio AMS."
       : isNameplateProduct(params.productType)
         ? "Multi-color desk name plate with raised lettering. Each layer is a separate color group for Bambu Studio AMS."
-        : isClickerProduct(params.productType)
-          ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
-          : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
+        : isPetTagProduct(params.productType)
+          ? "Multi-color pet collar tag with raised name and ring hole. Each layer is a separate color group for Bambu Studio AMS."
+          : isClickerProduct(params.productType)
+            ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
+            : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
   }</metadata>
   <resources>
 ${groups}
@@ -315,7 +324,9 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
           ? "letter-stand"
           : params.productType === "nameplate"
             ? "name-plate"
-            : "keychain";
+            : params.productType === "pet-tag"
+              ? "pet-tag"
+              : "keychain";
   const filename = `${fileSlug(batch) || suffix}-${suffix}.3mf`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

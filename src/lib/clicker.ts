@@ -11,7 +11,7 @@ import type { Font } from "opentype.js";
 import type { BuiltKeychain, BuiltPart, KeychainParams, LayerId } from "../types";
 import { formatName } from "./fontCache";
 import { letterShapesMm, shapesBounds, textShapes } from "./letters";
-import { extrudeSolid } from "./extrude";
+import { extrudeSolid, extrudeTaperedSolid } from "./extrude";
 import { clickerTokens, hasSvgToken, type ClickerToken } from "./nameTokens";
 import { composeNameShapes } from "./nameArt";
 import { circlePoly, differencePolys, polysToShapes, unionPolys, type Poly } from "./offset";
@@ -54,6 +54,27 @@ function extrude(shape: Shape, depth: number, z: number, segments: number, _beve
   geo.computeVertexNormals();
   return geo;
 }
+
+function extrudeTaper(
+  shape: Shape,
+  depth: number,
+  z: number,
+  segments: number,
+  topScale: number,
+) {
+  const geo = extrudeTaperedSolid(
+    shape,
+    Math.max(0.4, depth),
+    Math.max(24, segments),
+    topScale,
+  );
+  geo.translate(0, 0, z);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Clicker v1 only — traditional cap sides slope in toward a smaller top face. */
+const V1_CAP_TOP_SCALE = 0.84;
 
 function prepareMesh(geometry: BufferGeometry) {
   const welded = mergeVertices(geometry, 1e-4);
@@ -365,6 +386,11 @@ function buildKeycap(
 
   const bevel = params.bevelEnabled ? params.bevelSizeMm : 0;
   const parts: BuiltPart[] = [];
+  // v1 gets a classic keycap frustum; v2 stays a straight rounded square.
+  const tapered = params.productType === "clicker";
+  const topScale = tapered ? V1_CAP_TOP_SCALE : 1;
+  const topSize = size * topScale;
+  const topRadius = Math.min(radius * 0.92 + 0.15, topSize / 3);
 
   if (params.layers.outer && heights.outer > 0) {
     const faceShape = makePlateShape("rounded-rect", size, size, radius);
@@ -372,7 +398,9 @@ function buildKeycap(
     skirt.holes.push(plusHole(plusL, plusT));
     const geos = [
       extrude(skirt, well, 0, segs),
-      extrude(faceShape, heights.outer, well, segs, bevel),
+      tapered
+        ? extrudeTaper(faceShape, heights.outer, well, segs, topScale)
+        : extrude(faceShape, heights.outer, well, segs, bevel),
     ];
     geos.forEach((g) => g.translate(offsetX, offsetY, 0));
     const part = mergeLayer("outer", "Keycap", params.colors.outer, geos);
@@ -418,21 +446,24 @@ function buildKeycap(
   const box = shapesBounds(rawShapes);
   const pad = Math.max(1.2, params.platePaddingMm * 0.45);
   const rim = params.layers.outline ? params.outlineWidthMm : 0;
-  const target = Math.max(6, size - pad * 2 - rim * 2);
+  const faceFit = tapered ? topSize : size;
+  const target = Math.max(6, faceFit - pad * 2 - rim * 2);
   const scale = target / Math.max(box.width, box.height);
   const cx = (box.minX + box.maxX) / 2;
   const cy = (box.minY + box.maxY) / 2;
   const topZ = well + heights.baseZ;
 
   if (params.layers.outline && heights.outline > 0) {
+    const frameOuter = faceFit - pad;
+    const frameInner = faceFit - pad - rim * 2;
     const frame = makeFrameShape(
       "rounded-rect",
-      size - pad,
-      size - pad,
-      size - pad - rim * 2,
-      size - pad - rim * 2,
-      Math.max(0.4, radius - pad / 2),
-      Math.max(0.3, radius - pad / 2 - rim),
+      frameOuter,
+      frameOuter,
+      frameInner,
+      frameInner,
+      Math.max(0.4, (tapered ? topRadius : radius) - pad / 2),
+      Math.max(0.3, (tapered ? topRadius : radius) - pad / 2 - rim),
     );
     const geo = extrude(frame, heights.outline, topZ, segs, bevel);
     geo.translate(offsetX, offsetY, 0);

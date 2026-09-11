@@ -2,7 +2,7 @@
   "name": "keychain-maker",
   "private": true,
   "version": "1.0.0",
-  "description": "3D print studio — keychains, name plates, clickers, and letter stands",
+  "description": "3D print studio — keychains, pet tags, name plates, clickers, and letter stands",
   "author": "Mike Corpuz",
   "type": "module",
   "main": "electron/main.cjs",
@@ -40,7 +40,7 @@
   },
   "build": {
     "appId": "com.mikecorpuz.keychainmaker",
-    "productName": "Keychain Maker",
+    "productName": "Parametric",
     "copyright": "Copyright © Mike Corpuz",
     "directories": {
       "output": "release"

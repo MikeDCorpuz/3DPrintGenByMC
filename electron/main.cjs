@@ -9,7 +9,7 @@ function createWindow() {
     minHeight: 700,
     show: false,
     autoHideMenuBar: true,
-    title: "Keychain Maker by Mike Corpuz",
+    title: "Parametric by Mike Corpuz — 3D Print Studio",
     backgroundColor: "#0b0d11",
     webPreferences: {
       contextIsolation: true,

@@ -21,7 +21,7 @@ const WALLETS: Record<
 };
 
 export function SupportBanner() {
-  const [open, setOpen] = useState<Wallet | null>("maya");
+  const [open, setOpen] = useState<Wallet | null>(null);
 
   return (
     <section className="border-b border-line bg-gradient-to-b from-[#1a1510] to-panel px-5 py-4">

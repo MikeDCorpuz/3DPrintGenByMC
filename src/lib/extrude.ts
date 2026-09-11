@@ -85,6 +85,70 @@ function extrudeRings(outerIn: Poly, holesIn: Poly[], depth: number): BufferGeom
   return geo;
 }
 
+/** Same vertex count on top/bottom; top ring scaled toward centroid (traditional keycap taper). */
+function extrudeRingsTapered(
+  outerIn: Poly,
+  holesIn: Poly[],
+  depth: number,
+  topScale: number,
+): BufferGeometry {
+  const outer = signedArea(outerIn) < 0 ? [...outerIn].reverse() : [...outerIn];
+  if (outer.length < 3) return new BufferGeometry();
+  const holes = holesIn
+    .filter((ring) => ring.length >= 3)
+    .map((ring) => (signedArea(ring) > 0 ? [...ring].reverse() : [...ring]));
+
+  const faces = ShapeUtils.triangulateShape(outer, holes);
+  if (!faces.length) return new BufferGeometry();
+
+  let cx = 0;
+  let cy = 0;
+  for (const p of outer) {
+    cx += p.x;
+    cy += p.y;
+  }
+  cx /= outer.length;
+  cy /= outer.length;
+
+  const scale = Math.max(0.55, Math.min(1, topScale));
+  const contour = outer.concat(...holes);
+  const n = contour.length;
+  const z = Math.max(0.2, depth);
+  const positions = new Float32Array(n * 6);
+  for (let i = 0; i < n; i++) {
+    const p = contour[i];
+    positions[i * 3] = p.x;
+    positions[i * 3 + 1] = p.y;
+    positions[i * 3 + 2] = 0;
+    positions[(n + i) * 3] = cx + (p.x - cx) * scale;
+    positions[(n + i) * 3 + 1] = cy + (p.y - cy) * scale;
+    positions[(n + i) * 3 + 2] = z;
+  }
+
+  const indices: number[] = [];
+  for (const face of faces) {
+    if (face.length < 3 || face[0] === face[1] || face[1] === face[2] || face[2] === face[0]) continue;
+    indices.push(face[0], face[2], face[1]);
+    indices.push(n + face[0], n + face[1], n + face[2]);
+  }
+
+  for (let i = 0; i < outer.length; i++) {
+    pushWall(indices, i, (i + 1) % outer.length, n, false);
+  }
+  let offset = outer.length;
+  for (const hole of holes) {
+    for (let i = 0; i < hole.length; i++) {
+      pushWall(indices, offset + i, offset + ((i + 1) % hole.length), n, true);
+    }
+    offset += hole.length;
+  }
+
+  const geo = new BufferGeometry();
+  geo.setAttribute("position", new BufferAttribute(positions, 3));
+  geo.setIndex(indices);
+  return geo;
+}
+
 export function extrudeSolid(shape: Shape, depth: number, samples = 16): BufferGeometry {
   const quality = Math.max(32, samples);
   const outer = ringFrom(shape, quality);
@@ -98,6 +162,37 @@ export function extrudeSolid(shape: Shape, depth: number, samples = 16): BufferG
       const nextOuter = ringFrom(item, quality);
       const nextHoles = item.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
       return extrudeRings(nextOuter, nextHoles, depth);
+    })
+    .filter((geo) => (geo.getIndex()?.count ?? 0) > 0);
+
+  if (!geos.length) return new BufferGeometry();
+  if (geos.length === 1) return geos[0];
+  const merged = mergeGeometries(geos, false);
+  geos.forEach((geo) => geo.dispose());
+  return merged ?? new BufferGeometry();
+}
+
+/** Extrude with top face shrunk toward center — classic keycap side slope. */
+export function extrudeTaperedSolid(
+  shape: Shape,
+  depth: number,
+  samples = 16,
+  topScale = 0.86,
+): BufferGeometry {
+  if (topScale >= 0.995) return extrudeSolid(shape, depth, samples);
+
+  const quality = Math.max(32, samples);
+  const outer = ringFrom(shape, quality);
+  const holes = shape.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
+  const direct = extrudeRingsTapered(outer, holes, depth, topScale);
+  if (direct.getIndex()?.count) return direct;
+
+  const nested = polysToShapes(shapeToPolys(shape, quality), false, 0.05);
+  const geos = (nested.length ? nested : [shape])
+    .map((item) => {
+      const nextOuter = ringFrom(item, quality);
+      const nextHoles = item.holes.map((hole) => ringFrom(hole, quality)).filter((ring) => ring.length >= 3);
+      return extrudeRingsTapered(nextOuter, nextHoles, depth, topScale);
     })
     .filter((geo) => (geo.getIndex()?.count ?? 0) > 0);
 

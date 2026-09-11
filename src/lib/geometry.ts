@@ -2,10 +2,10 @@ import { Box3, BufferGeometry, Vector3 } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
 import { letterOutersMm, letterShapesMm, shapesBounds } from "./letters";
 import { extrudeSolid } from "./extrude";
-import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
+import { makeFrameShape, makePlateWithRingEyelet, punchRing, ringCenter } from "./shapes";
 import { formatName } from "./fontCache";
 import { BED_SIZE_MM, packOnBed } from "./layout";
 import { parseNames } from "./names";
@@ -90,6 +90,7 @@ export function layerHeights(params: KeychainParams) {
 
 export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain {
   const nameplate = isNameplateProduct(params.productType);
+  const petTag = isPetTagProduct(params.productType);
   const text = formatName(params.name, params.textCase);
   const heights = layerHeights(params);
   const samples = Math.max(20, params.curveSegments);
@@ -100,7 +101,7 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   }
   const rawBox = shapesBounds(rawShapes);
 
-  // Desk plates never get a key ring; always a solid plate (not text-cloud).
+  // Desk plates never get a key ring; pet tags keep a collar ring. Always a solid plate (not text-cloud).
   const ringPosition = nameplate ? "none" : params.ringPosition;
   const ringOn = ringPosition !== "none";
   const holeR = params.ringDiameterMm / 2;
@@ -110,12 +111,12 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
 
   const outlineW = params.layers.outline ? params.outlineWidthMm : 0;
   const pad = params.platePaddingMm;
-  const cloud = !nameplate && params.keychainType === "cloud";
+  const cloud = !nameplate && !petTag && params.keychainType === "cloud";
   const extras = cloud
     ? cloudScaleExtras(params)
     : { extraX: pad * 2 + outlineW * 2 + (sideRing ? ringBand : 0) };
 
-  const minLength = nameplate ? 60 : 18;
+  const minLength = nameplate ? 60 : petTag ? 24 : 18;
   const targetLength = Math.max(minLength, extras.extraX + 8, params.lengthMm);
   const textScale = (targetLength - extras.extraX) / rawBox.width;
   const textW = rawBox.width * textScale;
@@ -151,12 +152,20 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
     }
     parts.push(...buildCloudParts(letterOutersMm(mmShapes, samples), params, heights));
   } else if (params.layers.outer && heights.outer > 0) {
-    const plate = makePlateShape(params.shape, plateW, plateH, params.cornerRadiusMm);
-    if (ring) punchRing(plate, ring.x, ring.y, holeR);
+    const plate = makePlateWithRingEyelet(
+      params.shape,
+      plateW,
+      plateH,
+      params.cornerRadiusMm,
+      ring,
+      holeR,
+      params.ringMarginMm,
+      samples,
+    );
     const geo = extrudeSolid(plate, heights.outer, Math.max(32, samples));
     parts.push({
       id: "outer",
-      name: nameplate ? "Desk plate" : "Outer plate",
+      name: nameplate ? "Desk plate" : petTag ? "Pet tag" : "Outer plate",
       color: params.colors.outer,
       geometry: geo,
     });
@@ -180,7 +189,7 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
     geo.translate(textOffsetX, textOffsetY, 0);
     parts.push({
       id: "outline",
-      name: nameplate ? "Plate frame" : "Inner outline",
+      name: nameplate ? "Plate frame" : petTag ? "Tag rim" : "Inner outline",
       color: params.colors.outline,
       geometry: geo,
     });
@@ -218,7 +227,9 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
     throw new Error(
       nameplate
         ? "Turn on at least one layer to build a desk name plate."
-        : "Turn on at least one layer to build a keychain.",
+        : petTag
+          ? "Turn on at least one layer to build a pet tag."
+          : "Turn on at least one layer to build a keychain.",
     );
   }
 
@@ -298,7 +309,9 @@ export function buildBatch(font: Font, params: KeychainParams, scriptFont?: Font
           ? "None of the letter stands fit on the 256 × 256 mm bed. Reduce height or the name list."
           : isNameplateProduct(params.productType)
             ? "None of the name plates fit on the 256 × 256 mm bed. Reduce length or the name list."
-            : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
+            : isPetTagProduct(params.productType)
+              ? "None of the pet tags fit on the 256 × 256 mm bed. Reduce length or the name list."
+              : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
     );
   }
 

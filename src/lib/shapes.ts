@@ -1,5 +1,12 @@
 import { Path, Shape } from "three";
 import type { PlateShape, RingPosition } from "../types";
+import {
+  circlePoly,
+  differencePolys,
+  polysToShapes,
+  shapeToPolys,
+  unionPolysLoose,
+} from "./offset";
 
 export interface PlateLayout {
   width: number;
@@ -145,4 +152,54 @@ export function punchRing(shape: Shape, x: number, y: number, radius: number) {
   }
   hole.closePath();
   shape.holes.push(hole);
+}
+
+/**
+ * Plate silhouette with a solid circular eyelet around the ring hole.
+ * Unions the eyelet at full 2D footprint first, then punches the hole — so a sharp
+ * tag tip (or thin edge) cannot leave a floating fragment that needs supports.
+ */
+export function makePlateWithRingEyelet(
+  kind: PlateShape,
+  width: number,
+  height: number,
+  radius: number,
+  ring: { x: number; y: number } | null,
+  holeR: number,
+  margin: number,
+  samples = 32,
+): Shape {
+  const plate = makePlateShape(kind, width, height, radius);
+  if (!ring || holeR <= 0) return plate;
+
+  const wall = Math.max(1.6, margin);
+  const tabR = holeR + wall;
+  const body = shapeToPolys(plate, Math.max(24, samples));
+  if (!body.length) return plate;
+
+  const tab = circlePoly(ring.x, ring.y, tabR, 48);
+  const hole = circlePoly(ring.x, ring.y, holeR, 40);
+  const united = differencePolys(unionPolysLoose([...body, tab]), [hole]);
+  const shapes = polysToShapes(united, true, 0.5);
+  if (!shapes.length) {
+    // Fallback: punch in place (may still clip a tip, but better than empty).
+    punchRing(plate, ring.x, ring.y, holeR);
+    return plate;
+  }
+  // Prefer the largest outer contour as the printable body.
+  let best = shapes[0];
+  let bestArea = 0;
+  for (const shape of shapes) {
+    const pts = shape.getPoints(24);
+    let area = 0;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      area += pts[j].x * pts[i].y - pts[i].x * pts[j].y;
+    }
+    area = Math.abs(area) / 2;
+    if (area > bestArea) {
+      bestArea = area;
+      best = shape;
+    }
+  }
+  return best;
 }
