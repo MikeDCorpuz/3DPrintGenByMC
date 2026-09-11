@@ -12,8 +12,11 @@ import type { BuiltKeychain, BuiltPart, KeychainParams, LayerId } from "../types
 import { formatName } from "./fontCache";
 import { letterShapesMm, shapesBounds, textShapes } from "./letters";
 import { extrudeSolid } from "./extrude";
+import { clickerTokens, hasSvgToken, type ClickerToken } from "./nameTokens";
+import { composeNameShapes } from "./nameArt";
 import { circlePoly, differencePolys, polysToShapes, unionPolys, type Poly } from "./offset";
 import { makeFrameShape, makePlateShape, punchRing } from "./shapes";
+import { svgToShapes } from "./svgShapes";
 
 const MX_BODY = 15.6;
 const MX_PLATE = 14;
@@ -129,7 +132,9 @@ function capSize(params: KeychainParams) {
 }
 
 export function clickerLetters(name: string) {
-  return Array.from(name).filter((ch) => ch.trim());
+  return clickerTokens(name)
+    .filter((t): t is Extract<ClickerToken, { kind: "letter" }> => t.kind === "letter")
+    .map((t) => t.ch);
 }
 
 function platePoly(width: number, height: number, radius: number, ox: number, oy: number, segs: number): Poly {
@@ -272,6 +277,7 @@ function buildConnectedHousing(
   wells: { x: number; y: number }[],
   originX: number,
   originY: number,
+  linked = false,
 ): BuiltPart | null {
   if (!params.clickerPrintHousing || !params.layers.housing || !wells.length) return null;
 
@@ -280,22 +286,22 @@ function buildConnectedHousing(
   const floor = params.clickerFloorMm;
   const segs = params.curveSegments;
   const bevel = params.bevelEnabled ? params.bevelSizeMm : 0;
-  const overlap = 2.4;
+  const overlap = linked ? 3.2 : 2.4;
   const barH = Math.max(4, params.clickerJoinMm);
   const first = wells[0];
   const last = wells[wells.length - 1];
   const bar = {
     x: (first.x + last.x) / 2,
-    y: first.y - outer / 2 - barH / 2 + overlap,
+    y: linked ? first.y - outer * 0.18 : first.y - outer / 2 - barH / 2 + overlap,
     w: last.x - first.x + outer,
-    h: barH,
+    h: linked ? Math.max(barH, outer * 0.55) : barH,
   };
   const ring = connectedRing(params, wells, outer, bar);
   const tabR = ring ? ring.holeR + params.ringMarginMm + 1.1 : 0;
 
   const solids: Poly[] = [
     ...wells.map((well) => platePoly(outer, outer, radius, well.x, well.y, segs)),
-    platePoly(bar.w, bar.h, Math.min(bar.h / 2, 3.2), bar.x, bar.y, segs),
+    platePoly(bar.w, bar.h, Math.min(bar.h / 2, linked ? outer / 3 : 3.2), bar.x, bar.y, segs),
   ];
   if (ring) solids.push(circlePoly(ring.x, ring.y, tabR, 48));
 
@@ -331,14 +337,14 @@ function buildKeycap(
   params: KeychainParams,
   offsetX: number,
   offsetY = 0,
-  label?: string,
+  face: ClickerToken | string = { kind: "letter", ch: "" },
 ): BuiltPart[] {
   if (!params.clickerPrintKeycap) return [];
 
   const size = capSize(params);
   const radius = Math.min(params.clickerKeycapRadiusMm, size / 3);
   const well = MX_STEM_DEPTH;
-  const face = Math.max(2.2, params.clickerKeycapHeightMm - well);
+  const faceH = Math.max(2.2, params.clickerKeycapHeightMm - well);
   const plusL = MX_STEM_LEN + params.clickerStemClearanceMm;
   const plusT = MX_STEM_THICK + params.clickerStemClearanceMm;
   const segs = params.curveSegments;
@@ -349,7 +355,7 @@ function buildKeycap(
   const outlineRaise = outlineOn ? params.outlineRaiseMm : 0;
   const decor = Math.max(nameRaise, outlineRaise);
   const overlap = capOn && (nameOn || outlineOn) ? 0.35 : 0;
-  const capBase = capOn ? Math.max(1.4, face - decor) : 0;
+  const capBase = capOn ? Math.max(1.4, faceH - decor) : 0;
   const heights = {
     outer: capBase,
     outline: outlineRaise + overlap,
@@ -373,10 +379,42 @@ function buildKeycap(
     if (part) parts.push(part);
   }
 
-  const text = label ?? formatName(params.name, params.textCase);
-  const samples = Math.max(8, params.curveSegments);
-  const rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
+  const token: ClickerToken =
+    typeof face === "string"
+      ? { kind: "letter", ch: face }
+      : face;
+  const inlineSvg = hasSvgToken(params.name) && Boolean(params.clickerSvg.trim());
+  const useSvg =
+    token.kind === "svg" ||
+    (!inlineSvg && params.clickerCapArt === "svg" && Boolean(params.clickerSvg.trim()));
+
+  const samples = Math.max(16, params.curveSegments);
+  let rawShapes: Shape[] = [];
+  if (useSvg) {
+    try {
+      rawShapes = svgToShapes(params.clickerSvg);
+    } catch {
+      rawShapes = [];
+    }
+  } else if (token.kind === "letter" && token.ch) {
+    rawShapes = textShapes(font, token.ch, 100, params.letterSpacing, samples);
+  } else {
+    // Separate / single-cap layout: keep letters and {svg} on one face.
+    const text = formatName(params.name, params.textCase);
+    try {
+      rawShapes = composeNameShapes(font, text, params.clickerSvg, params.letterSpacing, samples);
+    } catch {
+      rawShapes = textShapes(
+        font,
+        text.replace(/\{svg\}/gi, "").trim() || text,
+        100,
+        params.letterSpacing,
+        samples,
+      );
+    }
+  }
   if (!rawShapes.length) return parts;
+
   const box = shapesBounds(rawShapes);
   const pad = Math.max(1.2, params.platePaddingMm * 0.45);
   const rim = params.layers.outline ? params.outlineWidthMm : 0;
@@ -413,7 +451,7 @@ function buildKeycap(
       geo.translate(offsetX, offsetY, topZ);
       geos.push(geo);
     }
-    const part = mergeLayer("name", "Letter", params.colors.name, geos);
+    const part = mergeLayer("name", useSvg ? "Cap design" : "Letter", params.colors.name, geos);
     if (part) parts.push(part);
   }
 
@@ -433,27 +471,32 @@ function buildSeparateClicker(font: Font, params: KeychainParams): BuiltKeychain
   return finishClicker(parts);
 }
 
-function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychain {
-  const letters = clickerLetters(params.name);
-  if (!letters.length) {
+function buildConnectedClicker(font: Font, params: KeychainParams, linked = false): BuiltKeychain {
+  const tokens = clickerTokens(params.name);
+  if (!tokens.length) {
     throw new Error("Type a name so the clicker letters can join into one bar.");
   }
-  if (letters.length > MAX_LETTERS) {
-    throw new Error(`Keep the name to ${MAX_LETTERS} letters so it still fits a 256 mm bed.`);
+  if (tokens.some((t) => t.kind === "svg") && !params.clickerSvg.trim()) {
+    throw new Error("Add an SVG file for the {svg} spot in the name, or remove {svg}.");
+  }
+  if (tokens.length > MAX_LETTERS) {
+    throw new Error(`Keep the name to ${MAX_LETTERS} letters/icons so it still fits a 256 mm bed.`);
   }
 
   const outer = housingOuter(params);
   const size = capSize(params);
-  const pitch = outer + params.clickerLetterGapMm;
-  const bodyW = letters.length * pitch - params.clickerLetterGapMm;
-  const wells = letters.map((letter, i) => ({
-    letter,
+  // v2 pulls wells closer so the housing reads as one linked body.
+  const gap = linked ? Math.min(params.clickerLetterGapMm, 0.6) : params.clickerLetterGapMm;
+  const pitch = outer + gap;
+  const bodyW = tokens.length * pitch - gap;
+  const wells = tokens.map((token, i) => ({
+    token,
     x: -bodyW / 2 + outer / 2 + i * pitch,
     y: 0,
   }));
 
   const barH = Math.max(4, params.clickerJoinMm);
-  const housingBottom = -outer / 2 - barH + 2.4;
+  const housingBottom = linked ? -outer / 2 - barH * 0.35 : -outer / 2 - barH + 2.4;
   const printHousing = params.clickerPrintHousing && params.layers.housing;
   const printCaps = params.clickerPrintKeycap;
   const capY = printHousing ? housingBottom - PRINT_GAP - size / 2 : 0;
@@ -468,15 +511,28 @@ function buildConnectedClicker(font: Font, params: KeychainParams): BuiltKeychai
   }
 
   const parts: BuiltPart[] = [];
-  const housing = buildConnectedHousing(params, wells, originX, originY);
+  const housing = buildConnectedHousing(params, wells, originX, originY, linked);
   if (housing) parts.push(housing);
   for (const well of wells) {
-    parts.push(...buildKeycap(font, params, well.x + originX, capY + originY, well.letter));
+    parts.push(...buildKeycap(font, params, well.x + originX, capY + originY, well.token));
   }
   return finishClicker(combineParts(parts));
 }
 
 export function buildClicker(font: Font, params: KeychainParams): BuiltKeychain {
+  if (params.productType === "clicker-v2") {
+    return buildConnectedClicker(
+      font,
+      {
+        ...params,
+        clickerLayout: "connected",
+        clickerJoinMm: params.clickerJoinMm ?? 8.5,
+        clickerLetterGapMm: params.clickerLetterGapMm ?? 0.4,
+        ringPosition: params.ringPosition === "none" ? "left" : params.ringPosition,
+      },
+      true,
+    );
+  }
   return params.clickerLayout === "separate"
     ? buildSeparateClicker(font, params)
     : buildConnectedClicker(font, {

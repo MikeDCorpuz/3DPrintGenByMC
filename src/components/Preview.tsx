@@ -57,9 +57,13 @@ function PartMesh({
     <mesh ref={mesh} geometry={geometry} position={[0, 0, lift]} castShadow receiveShadow>
       <meshStandardMaterial
         color={color}
-        roughness={0.42}
-        metalness={0.08}
-        envMapIntensity={0.8}
+        roughness={0.38}
+        metalness={0.06}
+        envMapIntensity={0.85}
+        flatShading={false}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
       />
     </mesh>
   );
@@ -94,8 +98,13 @@ export function Preview({ batch, explode, showBed }: PreviewProps) {
   return (
     <Canvas
       shadows
+      dpr={[1, 2]}
       camera={{ position: [160, 190, 210], fov: 38, near: 0.1, far: 1200 }}
-      gl={{ antialias: true, preserveDrawingBuffer: true }}
+      gl={{
+        antialias: true,
+        preserveDrawingBuffer: true,
+        powerPreference: "high-performance",
+      }}
     >
       <color attach="background" args={["#0b0d11"]} />
       <hemisphereLight intensity={0.55} color="#f4efe6" groundColor="#1a1410" />
@@ -103,8 +112,8 @@ export function Preview({ batch, explode, showBed }: PreviewProps) {
         position={[80, 120, 60]}
         intensity={1.35}
         castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
       />
       <directionalLight position={[-70, 40, 30]} intensity={0.35} color="#8eb4d4" />
 

@@ -12,7 +12,7 @@ import {
 } from "./offset";
 
 const LETTER_THICKEN_MM = 0.22;
-const LETTER_SIMPLIFY_MM = 0.08;
+const LETTER_SIMPLIFY_MM = 0.04;
 const MIN_COUNTER_MM = 2.4;
 const MIN_STROKE_MM = 1.15;
 
@@ -21,7 +21,7 @@ export function textShapes(font: Font, text: string, fontSize: number, letterSpa
   const shapes: Shape[] = [];
   let cursor = 0;
   const spacing = letterSpacing * fontSize * 0.01;
-  const quality = Math.max(16, samples);
+  const quality = Math.max(24, samples);
 
   for (const glyph of glyphs) {
     const path = glyph.getPath(cursor, 0, fontSize);
@@ -144,6 +144,10 @@ function thickenLetter(scaled: Poly[]): Poly[] {
   return differencePolys(body, holes.map((hole) => asCcw(hole)));
 }
 
+/**
+ * Scale, thicken, then Clipper-union every glyph contour into clean printable shapes.
+ * Overlapping script joins become one solid so extrusion does not leave internal faces.
+ */
 export function letterShapesMm(
   shapes: Shape[],
   scale: number,
@@ -151,15 +155,18 @@ export function letterShapesMm(
   cy: number,
   samples: number,
 ): Shape[] {
-  const result: Shape[] = [];
+  const allPolys: Poly[] = [];
   for (const shape of shapes) {
     const scaled = contoursMm(shape, scale, cx, cy, samples);
     if (!scaled.length) continue;
     const letter = thickenLetter(scaled);
-    const next = polysToShapes(letter.length ? letter : scaled, false, 0.08);
-    if (next.length) result.push(...next);
+    allPolys.push(...(letter.length ? letter : scaled));
   }
-  return result;
+  if (!allPolys.length) return [];
+
+  const united = polysToShapes(allPolys, true, 0.08);
+  if (united.length) return united;
+  return polysToShapes(allPolys, false, 0.08);
 }
 
 export function letterOutersMm(shapes: Shape[], samples: number): Poly[] {

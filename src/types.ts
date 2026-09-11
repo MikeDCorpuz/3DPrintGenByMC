@@ -1,10 +1,11 @@
-export type ProductType = "keychain" | "clicker";
+export type ProductType = "keychain" | "clicker" | "clicker-v2" | "monogram" | "nameplate";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
 export type TextCase = "as-is" | "upper" | "lower" | "title";
 export type SwitchStandard = "mx" | "standard-1u";
 export type ClickerLayout = "connected" | "separate";
+export type ClickerCapArt = "letter" | "svg";
 
 export type LayerId = "housing" | "outer" | "outline" | "name";
 
@@ -19,6 +20,10 @@ export interface KeychainParams {
   productType: ProductType;
   name: string;
   fontId: string;
+  scriptFontId: string;
+  monogramLetter: string;
+  monogramStandMm: number;
+  monogramScriptAngleDeg: number;
   lengthMm: number;
   totalThicknessMm: number;
   nameRaiseMm: number;
@@ -56,6 +61,30 @@ export interface KeychainParams {
   clickerLayout: ClickerLayout;
   clickerJoinMm: number;
   clickerLetterGapMm: number;
+  clickerCapArt: ClickerCapArt;
+  clickerSvg: string;
+  clickerSvgName: string;
+}
+
+export function isClickerProduct(productType: ProductType) {
+  return productType === "clicker" || productType === "clicker-v2";
+}
+
+export function isClickerV2(productType: ProductType) {
+  return productType === "clicker-v2";
+}
+
+export function isMonogramProduct(productType: ProductType) {
+  return productType === "monogram";
+}
+
+export function isNameplateProduct(productType: ProductType) {
+  return productType === "nameplate";
+}
+
+/** Keychain and desk name plate share the plate + raised-name builder. */
+export function isPlateProduct(productType: ProductType) {
+  return productType === "keychain" || productType === "nameplate";
 }
 
 export interface BuiltPart {
@@ -96,6 +125,10 @@ export const DEFAULT_PARAMS: KeychainParams = {
   productType: "keychain",
   name: "MICHAEL",
   fontId: "montserrat",
+  scriptFontId: "pacifico",
+  monogramLetter: "",
+  monogramStandMm: 8,
+  monogramScriptAngleDeg: 18,
   lengthMm: 72,
   totalThicknessMm: 3,
   nameRaiseMm: 0.8,
@@ -110,7 +143,7 @@ export const DEFAULT_PARAMS: KeychainParams = {
   ringMarginMm: 2.8,
   letterSpacing: 0,
   textCase: "as-is",
-  curveSegments: 10,
+  curveSegments: 16,
   bevelEnabled: false,
   bevelSizeMm: 0.15,
   bedGapMm: 4,
@@ -131,6 +164,9 @@ export const DEFAULT_PARAMS: KeychainParams = {
   clickerLayout: "connected",
   clickerJoinMm: 7.2,
   clickerLetterGapMm: 1.6,
+  clickerCapArt: "letter",
+  clickerSvg: "",
+  clickerSvgName: "",
   layers: { housing: true, outer: true, outline: true, name: true },
   colors: {
     housing: "#2A2E33",
@@ -152,6 +188,7 @@ export const PRESET_COLORS = [
   { name: "Red", hex: "#C0392B" },
   { name: "Crimson", hex: "#8B1E3F" },
   { name: "Forest", hex: "#2D5A3D" },
+  { name: "Green", hex: "#2FA84F" },
   { name: "Teal", hex: "#1D6B65" },
   { name: "Navy", hex: "#1C3D5A" },
   { name: "Royal", hex: "#2F4B8A" },

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Downloads — Keychain Maker by Mike Corpuz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --ink: #0b0d11;
+        --panel: #12151c;
+        --line: #232833;
+        --muted: #8b93a3;
+        --paper: #f4efe6;
+        --accent: #e08a2c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Instrument Sans", system-ui, sans-serif;
+        color: var(--paper);
+        background:
+          radial-gradient(ellipse 80% 50% at 20% 0%, #2a1a0c 0%, transparent 55%),
+          radial-gradient(ellipse 60% 40% at 90% 100%, #1a2433 0%, transparent 50%),
+          var(--ink);
+      }
+      main {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+      .eyebrow {
+        font-size: 11px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+      h1 {
+        margin: 8px 0 0;
+        font-size: 2rem;
+        font-weight: 600;
+      }
+      .sub {
+        margin: 10px 0 0;
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 0.95rem;
+      }
+      .card {
+        margin-top: 32px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: color-mix(in srgb, var(--panel) 92%, transparent);
+      }
+      .card h2 {
+        margin: 0;
+        font-size: 1.15rem;
+      }
+      .meta {
+        margin-top: 8px;
+        font-family: "IBM Plex Mono", monospace;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .notes {
+        margin: 16px 0 0;
+        padding: 0;
+        list-style: none;
+        color: var(--muted);
+        font-size: 0.875rem;
+        line-height: 1.55;
+      }
+      .notes li + li {
+        margin-top: 6px;
+      }
+      .notes li::before {
+        content: "· ";
+        color: var(--accent);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 22px;
+      }
+      a.btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 18px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-decoration: none;
+      }
+      a.btn-primary {
+        background: var(--accent);
+        color: var(--ink);
+      }
+      a.btn-ghost {
+        border: 1px solid var(--line);
+        color: var(--paper);
+        background: transparent;
+      }
+      a.btn-ghost:hover {
+        border-color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="eyebrow">3D print studio</div>
+      <h1>Downloads</h1>
+      <p class="sub">
+        Offline Windows app for Keychain Maker by Mike Corpuz. Double-click to open — no Node, no
+        terminal, no localhost setup. Desktop build omits the Maya / GCash tip panel.
+      </p>
+
+      <section class="card">
+        <h2>Windows portable</h2>
+        <div class="meta">KeychainMaker-Windows.exe · ~346 MB · Windows 10/11 x64</div>
+        <ul class="notes">
+          <li>No install — run the .exe directly</li>
+          <li>Needs internet for fonts and site counters</li>
+          <li>
+            Windows SmartScreen may warn (unsigned build). Choose More info → Run anyway
+          </li>
+        </ul>
+        <div class="actions">
+          <a class="btn btn-primary" href="./KeychainMaker-Windows.exe" download>
+            Download for Windows
+          </a>
+          <a class="btn btn-ghost" href="/">Open web studio</a>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

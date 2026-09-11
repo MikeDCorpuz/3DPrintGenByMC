@@ -1,5 +1,10 @@
 /// <reference types="vite/client" />
 
+declare module "manifold-3d/manifold.wasm?url" {
+  const url: string;
+  export default url;
+}
+
 declare module "opentype.js" {
   export interface BoundingBox {
     x1: number;

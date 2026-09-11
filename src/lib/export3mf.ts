@@ -1,6 +1,8 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { repairGeometriesPreserveAll } from "./repairMesh";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
 const LAYER_LABEL: Record<LayerId, string> = {
@@ -11,7 +13,17 @@ const LAYER_LABEL: Record<LayerId, string> = {
 };
 
 function layerLabel(layer: LayerId, productType: KeychainParams["productType"]) {
-  if (productType !== "clicker") return LAYER_LABEL[layer];
+  if (isMonogramProduct(productType)) {
+    if (layer === "outer") return "Letter stand";
+    if (layer === "outline") return "Letter rim";
+    if (layer === "name") return "Script";
+  }
+  if (isNameplateProduct(productType)) {
+    if (layer === "outer") return "Desk plate";
+    if (layer === "outline") return "Plate frame";
+    if (layer === "name") return "Name";
+  }
+  if (!isClickerProduct(productType)) return LAYER_LABEL[layer];
   if (layer === "outer") return "Keycap";
   if (layer === "outline") return "Cap outline";
   if (layer === "name") return "Letter";
@@ -103,24 +115,44 @@ interface Assembly {
   parts: MeshObject[];
 }
 
-function collectAssemblies(batch: BuiltBatch, filaments: Filament[]): { assemblies: Assembly[]; nextId: number } {
+async function collectAssemblies(
+  batch: BuiltBatch,
+  filaments: Filament[],
+  params: KeychainParams,
+): Promise<{ assemblies: Assembly[]; nextId: number; repairedParts: number }> {
   const byLayer = new Map(filaments.map((f) => [f.layer, f]));
   const assemblies: Assembly[] = [];
   let nextId = filaments.length ? filaments[filaments.length - 1].groupId + 1 : 2;
+  let repairedParts = 0;
+  const disposable: BufferGeometry[] = [];
 
   for (const placed of batch.items) {
     const parts: MeshObject[] = [];
-    for (const part of placed.keychain.parts) {
-      const filament = byLayer.get(part.id);
+    for (const layer of LAYER_ORDER) {
+      const filament = byLayer.get(layer);
       if (!filament) continue;
-      const { vertices, triangles } = meshXml(part.geometry);
-      parts.push({
-        id: nextId++,
-        name: part.name,
-        filament,
-        vertices,
-        triangles,
-      });
+      const source = placed.keychain.parts.filter((part) => part.id === layer);
+      if (!source.length) continue;
+
+      // Repair each body alone — do not union the name layer. Union previously
+      // dropped glyphs (e.g. "A") when Manifold could not solidify a counter.
+      const { pieces, repairedCount } = await repairGeometriesPreserveAll(
+        source.map((part) => ({ geometry: part.geometry, name: part.name })),
+        0.02,
+      );
+      repairedParts += repairedCount;
+
+      for (const piece of pieces) {
+        if (piece.dispose) disposable.push(piece.geometry);
+        const { vertices, triangles } = meshXml(piece.geometry);
+        parts.push({
+          id: nextId++,
+          name: piece.name || layerLabel(layer, params.productType),
+          filament,
+          vertices,
+          triangles,
+        });
+      }
     }
     if (!parts.length) continue;
     assemblies.push({
@@ -132,7 +164,8 @@ function collectAssemblies(batch: BuiltBatch, filaments: Filament[]): { assembli
     });
   }
 
-  return { assemblies, nextId };
+  disposable.forEach((geo) => geo.dispose());
+  return { assemblies, nextId, repairedParts };
 }
 
 function modelXml(
@@ -181,7 +214,13 @@ ${components}
     .map((assembly) => `    <item objectid="${assembly.id}" transform="${transformAt(assembly.x, assembly.y)}" />`)
     .join("\n");
 
-  const noun = params.productType === "clicker" ? "clicker" : "keychain";
+  const noun = isMonogramProduct(params.productType)
+    ? "letter stand"
+    : isNameplateProduct(params.productType)
+      ? "name plate"
+      : isClickerProduct(params.productType)
+        ? "clicker"
+        : "keychain";
   const title = batch.items.length === 1
     ? `${batch.items[0].label} ${noun}`
     : `${batch.items.length} ${noun}s`;
@@ -194,9 +233,13 @@ ${components}
   <metadata name="Title">${escapeXml(title)}</metadata>
   <metadata name="Designer">Mike Corpuz</metadata>
   <metadata name="Description">${
-    params.productType === "clicker"
-      ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
-      : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
+    isMonogramProduct(params.productType)
+      ? "Multi-color letter stand with desk foot and script writing. Each layer is a separate color group for Bambu Studio AMS."
+      : isNameplateProduct(params.productType)
+        ? "Multi-color desk name plate with raised lettering. Each layer is a separate color group for Bambu Studio AMS."
+        : isClickerProduct(params.productType)
+          ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
+          : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
   }</metadata>
   <resources>
 ${groups}
@@ -250,7 +293,7 @@ function fileSlug(batch: BuiltBatch) {
 
 export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
   const filaments = usedFilaments(batch, params);
-  const { assemblies } = collectAssemblies(batch, filaments);
+  const { assemblies, repairedParts } = await collectAssemblies(batch, filaments, params);
 
   const zip = new JSZip();
   zip.file("[Content_Types].xml", contentTypes());
@@ -263,7 +306,16 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
     compressionOptions: { level: 6 },
     mimeType: "model/3mf",
   });
-  const suffix = params.productType === "clicker" ? "clicker" : "keychain";
+  const suffix =
+    params.productType === "clicker-v2"
+      ? "clicker-v2"
+      : params.productType === "clicker"
+        ? "clicker"
+        : params.productType === "monogram"
+          ? "letter-stand"
+          : params.productType === "nameplate"
+            ? "name-plate"
+            : "keychain";
   const filename = `${fileSlug(batch) || suffix}-${suffix}.3mf`;
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -271,5 +323,5 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-  return filename;
+  return { filename, repairedParts };
 }
