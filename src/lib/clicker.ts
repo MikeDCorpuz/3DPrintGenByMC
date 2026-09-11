@@ -14,6 +14,7 @@ import { letterShapesMm, shapesBounds, textShapes } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { circlePoly, differencePolys, polysToShapes, unionPolys, type Poly } from "./offset";
 import { makeFrameShape, makePlateShape, punchRing } from "./shapes";
+import { svgToShapes } from "./svgShapes";
 
 const MX_BODY = 15.6;
 const MX_PLATE = 14;
@@ -374,10 +375,22 @@ function buildKeycap(
     if (part) parts.push(part);
   }
 
-  const text = label ?? formatName(params.name, params.textCase);
   const samples = Math.max(16, params.curveSegments);
-  const rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
+  const useSvg = params.clickerCapArt === "svg" && Boolean(params.clickerSvg.trim());
+  let rawShapes: Shape[] = [];
+  if (useSvg) {
+    try {
+      rawShapes = svgToShapes(params.clickerSvg);
+    } catch {
+      rawShapes = [];
+    }
+  }
+  if (!rawShapes.length) {
+    const text = label ?? formatName(params.name, params.textCase);
+    rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
+  }
   if (!rawShapes.length) return parts;
+
   const box = shapesBounds(rawShapes);
   const pad = Math.max(1.2, params.platePaddingMm * 0.45);
   const rim = params.layers.outline ? params.outlineWidthMm : 0;
@@ -414,7 +427,7 @@ function buildKeycap(
       geo.translate(offsetX, offsetY, topZ);
       geos.push(geo);
     }
-    const part = mergeLayer("name", "Letter", params.colors.name, geos);
+    const part = mergeLayer("name", useSvg ? "Cap design" : "Letter", params.colors.name, geos);
     if (part) parts.push(part);
   }
 

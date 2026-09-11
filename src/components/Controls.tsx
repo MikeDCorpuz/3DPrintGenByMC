@@ -6,6 +6,7 @@ import {
   isClickerV2,
   isMonogramProduct,
   isNameplateProduct,
+  type ClickerCapArt,
   type ClickerLayout,
   type KeychainParams,
   type KeychainType,
@@ -38,6 +39,11 @@ const LETTER_FONTS = FONTS.filter((font) => font.style === "serif" || font.style
 const LAYOUTS: { id: ClickerLayout; label: string }[] = [
   { id: "connected", label: "Name bar" },
   { id: "separate", label: "Separate" },
+];
+
+const CAP_ART: { id: ClickerCapArt; label: string }[] = [
+  { id: "letter", label: "Letter" },
+  { id: "svg", label: "SVG file" },
 ];
 
 const SWITCHES: { id: SwitchStandard; label: string }[] = [
@@ -470,7 +476,15 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             />
             <LayerCard
               id="name"
-              title={monogram ? "Script" : clicker ? "Letter" : "Name"}
+              title={
+                monogram
+                  ? "Script"
+                  : clicker
+                    ? params.clickerCapArt === "svg"
+                      ? "Cap design"
+                      : "Letter"
+                    : "Name"
+              }
               hint={monogram ? "Small writing across the face" : "Raised lettering"}
               params={params}
               onLayer={onLayer}
@@ -542,6 +556,61 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               onChange={(e) => onChange({ clickerPrintKeycap: e.target.checked })}
             />
           </label>
+          {params.clickerPrintKeycap && (
+            <Field label="Cap design">
+              <ChipRow
+                value={params.clickerCapArt ?? "letter"}
+                options={CAP_ART}
+                onChange={(clickerCapArt) => onChange({ clickerCapArt })}
+              />
+              {params.clickerCapArt === "svg" ? (
+                <div className="mt-2 space-y-2">
+                  <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-line bg-ink/40 px-3 py-3 text-center hover:border-accent/50">
+                    <span className="text-sm text-fog">
+                      {params.clickerSvgName ? params.clickerSvgName : "Choose an .svg file"}
+                    </span>
+                    <span className="text-[11px] text-muted">Flat vector paths work best</span>
+                    <input
+                      type="file"
+                      accept=".svg,image/svg+xml"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) return;
+                        const clickerSvg = await file.text();
+                        onChange({
+                          clickerCapArt: "svg",
+                          clickerSvg,
+                          clickerSvgName: file.name,
+                        });
+                      }}
+                    />
+                  </label>
+                  {params.clickerSvg ? (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted underline hover:text-fog"
+                      onClick={() =>
+                        onChange({ clickerSvg: "", clickerSvgName: "", clickerCapArt: "letter" })
+                      }
+                    >
+                      Clear SVG — use letter
+                    </button>
+                  ) : null}
+                  <p className="text-[11px] leading-relaxed text-muted">
+                    Uploaded artwork is raised on every keycap. Prefer solid filled paths (not
+                    strokes-only, filters, or embedded images). Housing letters still come from the
+                    name field.
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                  Cap face uses the letter from the name field.
+                </p>
+              )}
+            </Field>
+          )}
           {params.switchStandard === "mx" && (
             <Field label="Keycap size" value={`${params.clickerKeycapMm.toFixed(1)} mm`}>
               <input

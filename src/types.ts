@@ -5,6 +5,7 @@ export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
 export type TextCase = "as-is" | "upper" | "lower" | "title";
 export type SwitchStandard = "mx" | "standard-1u";
 export type ClickerLayout = "connected" | "separate";
+export type ClickerCapArt = "letter" | "svg";
 
 export type LayerId = "housing" | "outer" | "outline" | "name";
 
@@ -60,6 +61,9 @@ export interface KeychainParams {
   clickerLayout: ClickerLayout;
   clickerJoinMm: number;
   clickerLetterGapMm: number;
+  clickerCapArt: ClickerCapArt;
+  clickerSvg: string;
+  clickerSvgName: string;
 }
 
 export function isClickerProduct(productType: ProductType) {
@@ -160,6 +164,9 @@ export const DEFAULT_PARAMS: KeychainParams = {
   clickerLayout: "connected",
   clickerJoinMm: 7.2,
   clickerLetterGapMm: 1.6,
+  clickerCapArt: "letter",
+  clickerSvg: "",
+  clickerSvgName: "",
   layers: { housing: true, outer: true, outline: true, name: true },
   colors: {
     housing: "#2A2E33",

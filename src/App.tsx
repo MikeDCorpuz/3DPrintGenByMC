@@ -133,7 +133,7 @@ export default function App() {
     if (!batch) return;
     setExporting(true);
     try {
-      const filename = await export3mf(batch, params);
+      const { filename, repairedParts } = await export3mf(batch, params);
       const downloads = await trackDownload();
       setStats((prev) =>
         prev ? { ...prev, downloads } : { visits: 0, generated: 0, downloads },
@@ -145,8 +145,12 @@ export default function App() {
           : isNameplateProduct(params.productType)
             ? "map Desk plate / Frame / Name to your AMS slots"
             : "map Outer / Outline / Name to your AMS slots";
+      const repairNote =
+        repairedParts > 0
+          ? ` Auto-repaired ${repairedParts} mesh${repairedParts === 1 ? "" : "es"} before export.`
+          : "";
       setExportNote(
-        `Saved ${filename}. In Bambu Studio use File → Open (not geometry-only). If a color dialog appears, ${mapHint}. If a letter shows open edges or gaps, right-click the model → Fix Model.`,
+        `Saved ${filename}.${repairNote} In Bambu Studio use File → Open (not geometry-only). If a color dialog appears, ${mapHint}. If anything still looks open, right-click the model → Fix Model.`,
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Export failed.");
@@ -166,6 +170,7 @@ export default function App() {
         : "keychain";
   const previewTitle =
     names.length === 1 ? names[0] : `${names.length} ${noun}s`;
+  const isDesktopApp = import.meta.env.VITE_DESKTOP === "1";
 
   return (
     <div className="flex h-full min-h-0">
@@ -173,7 +178,17 @@ export default function App() {
         <header className="border-b border-line px-5 py-4">
           <div className="text-[11px] uppercase tracking-[0.2em] text-accent">3D print studio</div>
           <h1 className="mt-1 text-xl font-semibold">Keychain Maker</h1>
-          <div className="mt-0.5 text-xs text-muted">by Mike Corpuz</div>
+          <div className="mt-0.5 flex items-center justify-between gap-3 text-xs text-muted">
+            <span>by Mike Corpuz</span>
+            {!isDesktopApp && (
+              <a
+                href="/downloads/"
+                className="shrink-0 text-accent/90 underline-offset-2 hover:text-accent hover:underline"
+              >
+                Windows app
+              </a>
+            )}
+          </div>
           <p className="mt-1 text-xs leading-relaxed text-muted">
             {isMonogramProduct(params.productType)
               ? "One big letter with a desk stand and script writing across the face. Comma-separate names to print a set."
@@ -191,7 +206,7 @@ export default function App() {
             <StatsBar stats={stats} />
           </div>
         </header>
-        <SupportBanner />
+        {!isDesktopApp && <SupportBanner />}
         <div className="min-h-0 flex-1">
           <Controls params={params} onChange={patch} onColor={onColor} onLayer={onLayer} />
         </div>
@@ -277,9 +292,10 @@ export default function App() {
               </div>
             )}
             <div className="rounded-xl border border-line/80 bg-panel/90 px-3 py-2 text-[11px] leading-relaxed text-muted backdrop-blur">
-              <span className="font-medium text-paper/80">Disclaimer:</span> some text-to-geometry
-              conversions leave open gaps. In Bambu Studio, right-click the model →{" "}
-              <span className="text-paper/90">Fix Model</span> to close them, then slice.
+              <span className="font-medium text-paper/80">Disclaimer:</span> download runs an automatic
+              mesh repair (Manifold) to close open edges when possible. If Preview still looks odd in
+              Bambu Studio, right-click the model →{" "}
+              <span className="text-paper/90">Fix Model</span>, then slice.
             </div>
             <button
               type="button"
@@ -287,7 +303,7 @@ export default function App() {
               disabled={!batch || busy || exporting}
               className="rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-ink shadow-lg shadow-black/30 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {exporting ? "Writing .3mf…" : "Download .3mf"}
+              {exporting ? "Repairing & writing .3mf…" : "Download .3mf"}
             </button>
           </div>
         </div>

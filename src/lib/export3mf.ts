@@ -2,6 +2,7 @@ import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
 import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { repairGeometriesPreserveAll } from "./repairMesh";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
 const LAYER_LABEL: Record<LayerId, string> = {
@@ -114,24 +115,44 @@ interface Assembly {
   parts: MeshObject[];
 }
 
-function collectAssemblies(batch: BuiltBatch, filaments: Filament[]): { assemblies: Assembly[]; nextId: number } {
+async function collectAssemblies(
+  batch: BuiltBatch,
+  filaments: Filament[],
+  params: KeychainParams,
+): Promise<{ assemblies: Assembly[]; nextId: number; repairedParts: number }> {
   const byLayer = new Map(filaments.map((f) => [f.layer, f]));
   const assemblies: Assembly[] = [];
   let nextId = filaments.length ? filaments[filaments.length - 1].groupId + 1 : 2;
+  let repairedParts = 0;
+  const disposable: BufferGeometry[] = [];
 
   for (const placed of batch.items) {
     const parts: MeshObject[] = [];
-    for (const part of placed.keychain.parts) {
-      const filament = byLayer.get(part.id);
+    for (const layer of LAYER_ORDER) {
+      const filament = byLayer.get(layer);
       if (!filament) continue;
-      const { vertices, triangles } = meshXml(part.geometry);
-      parts.push({
-        id: nextId++,
-        name: part.name,
-        filament,
-        vertices,
-        triangles,
-      });
+      const source = placed.keychain.parts.filter((part) => part.id === layer);
+      if (!source.length) continue;
+
+      // Repair each body alone — do not union the name layer. Union previously
+      // dropped glyphs (e.g. "A") when Manifold could not solidify a counter.
+      const { pieces, repairedCount } = await repairGeometriesPreserveAll(
+        source.map((part) => ({ geometry: part.geometry, name: part.name })),
+        0.02,
+      );
+      repairedParts += repairedCount;
+
+      for (const piece of pieces) {
+        if (piece.dispose) disposable.push(piece.geometry);
+        const { vertices, triangles } = meshXml(piece.geometry);
+        parts.push({
+          id: nextId++,
+          name: piece.name || layerLabel(layer, params.productType),
+          filament,
+          vertices,
+          triangles,
+        });
+      }
     }
     if (!parts.length) continue;
     assemblies.push({
@@ -143,7 +164,8 @@ function collectAssemblies(batch: BuiltBatch, filaments: Filament[]): { assembli
     });
   }
 
-  return { assemblies, nextId };
+  disposable.forEach((geo) => geo.dispose());
+  return { assemblies, nextId, repairedParts };
 }
 
 function modelXml(
@@ -271,7 +293,7 @@ function fileSlug(batch: BuiltBatch) {
 
 export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
   const filaments = usedFilaments(batch, params);
-  const { assemblies } = collectAssemblies(batch, filaments);
+  const { assemblies, repairedParts } = await collectAssemblies(batch, filaments, params);
 
   const zip = new JSZip();
   zip.file("[Content_Types].xml", contentTypes());
@@ -301,5 +323,5 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
-  return filename;
+  return { filename, repairedParts };
 }
