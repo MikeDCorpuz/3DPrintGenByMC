@@ -3,7 +3,7 @@ import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
 import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
-import { letterOutersMm, letterShapesMm, shapesBounds, textShapes } from "./letters";
+import { letterOutersMm, letterShapesMm, shapesBounds } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
 import { formatName } from "./fontCache";
@@ -12,6 +12,7 @@ import { parseNames } from "./names";
 import { buildClicker } from "./clicker";
 import { buildMonogram } from "./monogram";
 import { buildCloudParts, cloudScaleExtras } from "./cloud";
+import { composeNameShapes } from "./nameArt";
 
 const PLA_DENSITY_G_CM3 = 1.24;
 
@@ -93,7 +94,7 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   const heights = layerHeights(params);
   const samples = Math.max(20, params.curveSegments);
 
-  const rawShapes = textShapes(font, text, 100, params.letterSpacing, samples);
+  const rawShapes = composeNameShapes(font, text, params.clickerSvg, params.letterSpacing, samples);
   if (!rawShapes.length) {
     throw new Error("That name produced no drawable letters. Try another font or text.");
   }

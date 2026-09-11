@@ -42,8 +42,8 @@ const LAYOUTS: { id: ClickerLayout; label: string }[] = [
 ];
 
 const CAP_ART: { id: ClickerCapArt; label: string }[] = [
-  { id: "letter", label: "Letter" },
-  { id: "svg", label: "SVG file" },
+  { id: "letter", label: "Letters + {svg}" },
+  { id: "svg", label: "SVG on every cap" },
 ];
 
 const SWITCHES: { id: SwitchStandard; label: string }[] = [
@@ -322,30 +322,82 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               monogram
                 ? "Michael, Alex"
                 : nameplate
-                  ? "MICHAEL, ALEX"
+                  ? "Michael {svg} Corpuz"
                   : connected
-                    ? "MICHAEL, ALEX"
+                    ? "Michael {svg} Corpuz"
                     : clicker
                       ? "M, A, S"
-                      : "MICHAEL, ALEX, SAM"
+                      : "Michael {svg} Corpuz, Alex"
             }
             rows={4}
             className="w-full resize-y rounded-lg border border-line bg-ink px-3 py-2.5 text-base leading-relaxed outline-none ring-accent/40 focus:ring-2"
           />
+          {!monogram && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-md border border-line bg-ink/40 px-2.5 py-1 text-[11px] text-fog hover:border-accent/50"
+                onClick={() => {
+                  const insert = params.name.trim() ? " {svg} " : "{svg}";
+                  onChange({ name: `${params.name}${insert}` });
+                }}
+              >
+                Insert {"{svg}"}
+              </button>
+              {params.clickerSvgName ? (
+                <span className="text-[11px] text-muted">SVG ready: {params.clickerSvgName}</span>
+              ) : (
+                <span className="text-[11px] text-muted">Upload an SVG below, then place {"{svg}"} in the name</span>
+              )}
+            </div>
+          )}
           <p className="text-[11px] leading-relaxed text-muted">
             {monogram
               ? "Small writing across the big letter. Commas print more than one stand. The big letter defaults to the first letter of each name."
               : nameplate
-                ? "Long desk plate with raised name — no key ring. Commas print more than one plate."
+                ? 'Long desk plate — use Michael {svg} Corpuz to raise your icon between words. Commas print more than one plate.'
                 : clickerV2
-                  ? "Linked name-bar housing: letters sit in a row with a left ring. Commas print more than one name."
+                  ? 'Linked name-bar: each letter is a well, and {svg} becomes its own icon well in the row. Commas print more than one name.'
                   : connected
-                    ? "Type a name. Letters sit in a row, join at the bottom, and the left well gets the key ring. Commas print more than one name."
+                    ? 'Type a name. Put {svg} where the icon should sit (e.g. Michael {svg} Corpuz). Commas print more than one name.'
                     : clicker
                       ? "One letter per clicker works best. Separate with commas to print a set."
-                      : "Separate names with commas. Each one becomes its own keychain on the 256 × 256 mm bed."}
+                      : 'Separate names with commas. Use {svg} in a name to place your uploaded icon inline.'}
           </p>
         </Field>
+        {!monogram && !clicker && (
+          <Field label="Inline SVG">
+            <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-line bg-ink/40 px-3 py-3 text-center hover:border-accent/50">
+              <span className="text-sm text-fog">
+                {params.clickerSvgName ? params.clickerSvgName : "Choose an .svg file"}
+              </span>
+              <span className="text-[11px] text-muted">Used wherever you type {"{svg}"} in the name</span>
+              <input
+                type="file"
+                accept=".svg,image/svg+xml"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (!file) return;
+                  onChange({
+                    clickerSvg: await file.text(),
+                    clickerSvgName: file.name,
+                  });
+                }}
+              />
+            </label>
+            {params.clickerSvg ? (
+              <button
+                type="button"
+                className="mt-2 text-[11px] text-muted underline hover:text-fog"
+                onClick={() => onChange({ clickerSvg: "", clickerSvgName: "" })}
+              >
+                Clear SVG
+              </button>
+            ) : null}
+          </Field>
+        )}
         {monogram && (
           <Field label="Big letter">
             <input
@@ -480,8 +532,8 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                 monogram
                   ? "Script"
                   : clicker
-                    ? params.clickerCapArt === "svg"
-                      ? "Cap design"
+                    ? params.clickerCapArt === "svg" || params.name.toLowerCase().includes("{svg}")
+                      ? "Letter / design"
                       : "Letter"
                     : "Name"
               }
@@ -563,52 +615,43 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                 options={CAP_ART}
                 onChange={(clickerCapArt) => onChange({ clickerCapArt })}
               />
-              {params.clickerCapArt === "svg" ? (
-                <div className="mt-2 space-y-2">
-                  <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-line bg-ink/40 px-3 py-3 text-center hover:border-accent/50">
-                    <span className="text-sm text-fog">
-                      {params.clickerSvgName ? params.clickerSvgName : "Choose an .svg file"}
-                    </span>
-                    <span className="text-[11px] text-muted">Flat vector paths work best</span>
-                    <input
-                      type="file"
-                      accept=".svg,image/svg+xml"
-                      className="hidden"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        e.target.value = "";
-                        if (!file) return;
-                        const clickerSvg = await file.text();
-                        onChange({
-                          clickerCapArt: "svg",
-                          clickerSvg,
-                          clickerSvgName: file.name,
-                        });
-                      }}
-                    />
-                  </label>
-                  {params.clickerSvg ? (
-                    <button
-                      type="button"
-                      className="text-[11px] text-muted underline hover:text-fog"
-                      onClick={() =>
-                        onChange({ clickerSvg: "", clickerSvgName: "", clickerCapArt: "letter" })
-                      }
-                    >
-                      Clear SVG — use letter
-                    </button>
-                  ) : null}
-                  <p className="text-[11px] leading-relaxed text-muted">
-                    Uploaded artwork is raised on every keycap. Prefer solid filled paths (not
-                    strokes-only, filters, or embedded images). Housing letters still come from the
-                    name field.
-                  </p>
-                </div>
-              ) : (
-                <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                  Cap face uses the letter from the name field.
+              <div className="mt-2 space-y-2">
+                <label className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-line bg-ink/40 px-3 py-3 text-center hover:border-accent/50">
+                  <span className="text-sm text-fog">
+                    {params.clickerSvgName ? params.clickerSvgName : "Choose an .svg file"}
+                  </span>
+                  <span className="text-[11px] text-muted">Flat vector paths work best</span>
+                  <input
+                    type="file"
+                    accept=".svg,image/svg+xml"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = "";
+                      if (!file) return;
+                      const clickerSvg = await file.text();
+                      onChange({
+                        clickerSvg,
+                        clickerSvgName: file.name,
+                      });
+                    }}
+                  />
+                </label>
+                {params.clickerSvg ? (
+                  <button
+                    type="button"
+                    className="text-[11px] text-muted underline hover:text-fog"
+                    onClick={() => onChange({ clickerSvg: "", clickerSvgName: "" })}
+                  >
+                    Clear SVG
+                  </button>
+                ) : null}
+                <p className="text-[11px] leading-relaxed text-muted">
+                  {params.clickerCapArt === "svg"
+                    ? "Every keycap gets this SVG. For a mixed name bar, switch to Letters + {svg} and type Michael {svg} Corpuz."
+                    : "Default: each letter is its own cap. Put {svg} in the name to add one icon cap in that spot — letters and SVG print together on the same bar."}
                 </p>
-              )}
+              </div>
             </Field>
           )}
           {params.switchStandard === "mx" && (
