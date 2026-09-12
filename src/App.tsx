@@ -3,6 +3,7 @@ import { Controls } from "./components/Controls";
 import { Preview } from "./components/Preview";
 import { ProductTabs } from "./components/ProductTabs";
 import { StatsBar } from "./components/StatsBar";
+import { PrintRequests } from "./components/PrintRequests";
 import { SupportBanner } from "./components/SupportBanner";
 import { export3mf } from "./lib/export3mf";
 import { loadFont } from "./lib/fontCache";
@@ -215,6 +216,7 @@ export default function App() {
             <StatsBar stats={stats} />
           </div>
         </header>
+        {!isDesktopApp && <PrintRequests />}
         {!isDesktopApp && <SupportBanner />}
         <ProductTabs params={params} onChange={patch} />
         <div className="min-h-0 flex-1">
