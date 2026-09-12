@@ -2,13 +2,16 @@ import { Box3, BufferGeometry, Vector3 } from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
+import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct, isLetterCharmProduct, isLetterBeadProduct } from "../types";
+import { buildLetterCharm } from "./letterCharm";
+import { buildLetterBead } from "./letterBead";
 import { letterOutersMm, letterShapesMm, shapesBounds } from "./letters";
 import { extrudeSolid } from "./extrude";
 import { makeFrameShape, makePlateWithRingEyelet, punchRing, ringCenter } from "./shapes";
 import { formatName } from "./fontCache";
 import { BED_SIZE_MM, packOnBed } from "./layout";
 import { parseNames } from "./names";
+import { clickerTokens } from "./nameTokens";
 import { buildClicker } from "./clicker";
 import { buildMonogram } from "./monogram";
 import { buildCloudParts, cloudScaleExtras } from "./cloud";
@@ -272,16 +275,42 @@ export function disposeBatch(batch: BuiltBatch | null) {
   batch?.items.forEach((item) => disposeKeychain(item.keychain));
 }
 
+function letterBeadJobs(params: KeychainParams) {
+  if (!isLetterBeadProduct(params.productType)) {
+    return parseNames(params.name, params.textCase).map((name) => ({ label: name, name }));
+  }
+  const jobs: { label: string; name: string }[] = [];
+  for (const name of parseNames(params.name, params.textCase)) {
+    const tokens = clickerTokens(name);
+    if (tokens.some((token) => token.kind === "svg") && !params.clickerSvg.trim()) {
+      throw new Error("Add an SVG for {svg}, or remove that token.");
+    }
+    for (const token of tokens) {
+      jobs.push(
+        token.kind === "svg"
+          ? { label: "SVG", name: "{svg}" }
+          : { label: token.ch, name: token.ch },
+      );
+    }
+  }
+  if (!jobs.length) throw new Error("Type a word. Each letter becomes its own bead.");
+  return jobs;
+}
+
 export function buildBatch(font: Font, params: KeychainParams, scriptFont?: Font): BuiltBatch {
-  const labels = parseNames(params.name, params.textCase);
-  const built = labels.map((label) => {
-    const nextParams = { ...params, name: label, textCase: "as-is" as const };
+  const jobs = letterBeadJobs(params);
+  const built = jobs.map((job) => {
+    const nextParams = { ...params, name: job.name, textCase: "as-is" as const };
     const keychain = isClickerProduct(params.productType)
       ? buildClicker(font, nextParams)
       : isMonogramProduct(params.productType)
         ? buildMonogram(font, scriptFont ?? font, nextParams)
-        : buildKeychain(font, nextParams);
-    return { label, keychain };
+        : isLetterCharmProduct(params.productType)
+          ? buildLetterCharm(font, nextParams, scriptFont ?? font)
+          : isLetterBeadProduct(params.productType)
+            ? buildLetterBead(font, nextParams)
+            : buildKeychain(font, nextParams);
+    return { label: job.label, keychain };
   });
   const packed = packOnBed(
     built.map(({ keychain }) => ({
@@ -309,7 +338,11 @@ export function buildBatch(font: Font, params: KeychainParams, scriptFont?: Font
           ? "None of the letter stands fit on the 256 × 256 mm bed. Reduce height or the name list."
           : isNameplateProduct(params.productType)
             ? "None of the name plates fit on the 256 × 256 mm bed. Reduce length or the name list."
-            : isPetTagProduct(params.productType)
+            : isLetterCharmProduct(params.productType)
+              ? "None of the letter charms fit on the 256 × 256 mm bed. Reduce letter height or the name list."
+              : isLetterBeadProduct(params.productType)
+                ? "None of the letter beads fit on the 256 × 256 mm bed. Reduce bead size or the name."
+                : isPetTagProduct(params.productType)
               ? "None of the pet tags fit on the 256 × 256 mm bed. Reduce length or the name list."
               : "None of the keychains fit on the 256 × 256 mm bed. Reduce length or the name list.",
     );

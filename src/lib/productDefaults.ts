@@ -3,6 +3,8 @@ import {
   isMonogramProduct,
   isNameplateProduct,
   isPetTagProduct,
+  isLetterCharmProduct,
+  isLetterBeadProduct,
   type KeychainParams,
   type ProductType,
 } from "../types";
@@ -15,7 +17,13 @@ const KEYCHAIN_COLORS = {
 } as const;
 
 function isSizedSpecial(productType: ProductType) {
-  return productType === "monogram" || productType === "nameplate" || productType === "pet-tag";
+  return (
+    productType === "monogram" ||
+    productType === "nameplate" ||
+    productType === "pet-tag" ||
+    productType === "letter-charm" ||
+    productType === "letter-bead"
+  );
 }
 
 /** Patch applied when the user switches the primary product tab. */
@@ -129,6 +137,48 @@ export function productSwitchPatch(
     };
   }
 
+  if (isLetterCharmProduct(next)) {
+    return {
+      productType: next,
+      fontId: "fredoka",
+      scriptFontId: "fredoka",
+      lengthMm: 58,
+      totalThicknessMm: 3.2,
+      nameRaiseMm: 0.7,
+      ringDiameterMm: 4,
+      ringMarginMm: 2.2,
+      letterSpacing: 16,
+      textCase: "upper",
+      name: params.name || "MICHAEL",
+      layers: { housing: false, outer: true, outline: false, name: true },
+      colors: {
+        ...params.colors,
+        outer: "#F0D56A",
+        name: "#C9A84A",
+      },
+    };
+  }
+
+  if (isLetterBeadProduct(next)) {
+    return {
+      productType: next,
+      fontId: "titan-one",
+      lengthMm: 28,
+      totalThicknessMm: 11,
+      nameRaiseMm: 1.8,
+      platePaddingMm: 2.8,
+      ringDiameterMm: 4.2,
+      textCase: "upper",
+      name: params.name || "MICHAEL",
+      layers: { housing: false, outer: true, outline: false, name: true },
+      colors: {
+        ...params.colors,
+        outer: "#9FD8EA",
+        name: "#F6F1E7",
+      },
+    };
+  }
+
   if (next === "keychain" && isSizedSpecial(params.productType)) {
     return {
       productType: next,
@@ -153,6 +203,8 @@ export function productSwitchPatch(
 
 export const PRODUCTS: { id: ProductType; label: string }[] = [
   { id: "keychain", label: "Keychain" },
+  { id: "letter-charm", label: "Letter charm" },
+  { id: "letter-bead", label: "Letter beads" },
   { id: "pet-tag", label: "Pet tag" },
   { id: "nameplate", label: "Name plate" },
   { id: "clicker", label: "Clicker" },

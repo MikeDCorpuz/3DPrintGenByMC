@@ -4,7 +4,9 @@ export type ProductType =
   | "clicker-v2"
   | "monogram"
   | "nameplate"
-  | "pet-tag";
+  | "pet-tag"
+  | "letter-charm"
+  | "letter-bead";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
@@ -90,6 +92,14 @@ export function isNameplateProduct(productType: ProductType) {
 
 export function isPetTagProduct(productType: ProductType) {
   return productType === "pet-tag";
+}
+
+export function isLetterCharmProduct(productType: ProductType) {
+  return productType === "letter-charm";
+}
+
+export function isLetterBeadProduct(productType: ProductType) {
+  return productType === "letter-bead";
 }
 
 /** Flat plate + raised-name products that share buildKeychain. */

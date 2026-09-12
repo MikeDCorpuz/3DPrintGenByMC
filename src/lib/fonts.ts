@@ -8,7 +8,6 @@ export interface FontOption {
 
 /**
  * Famous fonts loaded as WOFF (opentype.js-compatible) from Fontsource.
- * 25 faces covering the styles people actually pick for keychains.
  */
 export const FONTS: FontOption[] = [
   {
@@ -101,6 +100,41 @@ export const FONTS: FontOption[] = [
     designer: "Natanael Gama",
     style: "serif",
     url: "https://cdn.jsdelivr.net/npm/@fontsource/cinzel@5.2.6/files/cinzel-latin-700-normal.woff",
+  },
+  {
+    id: "fredoka",
+    name: "Fredoka",
+    designer: "Milena Brandão",
+    style: "display",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/fredoka@5.3.0/files/fredoka-latin-700-normal.woff",
+  },
+  {
+    id: "baloo",
+    name: "Baloo 2",
+    designer: "Ek Type",
+    style: "display",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/baloo-2@5.2.6/files/baloo-2-latin-800-normal.woff",
+  },
+  {
+    id: "titan-one",
+    name: "Titan One",
+    designer: "Rodrigo Fuenzalida",
+    style: "display",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/titan-one@5.2.6/files/titan-one-latin-400-normal.woff",
+  },
+  {
+    id: "lilita-one",
+    name: "Lilita One",
+    designer: "Juan Montoreano",
+    style: "display",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/lilita-one@5.2.6/files/lilita-one-latin-400-normal.woff",
+  },
+  {
+    id: "bagel-fat-one",
+    name: "Bagel Fat One",
+    designer: "Kyungwon Kim",
+    style: "display",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/bagel-fat-one@5.2.6/files/bagel-fat-one-latin-400-normal.woff",
   },
   {
     id: "abril-fatface",

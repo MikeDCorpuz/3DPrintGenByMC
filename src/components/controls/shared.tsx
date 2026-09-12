@@ -295,11 +295,13 @@ export function FontSelectField({
   onChange,
   label = "Font",
   letterOnly = false,
+  fontKey = "fontId",
 }: {
   params: KeychainParams;
   onChange: (patch: Partial<KeychainParams>) => void;
   label?: string;
   letterOnly?: boolean;
+  fontKey?: "fontId" | "scriptFontId";
 }) {
   const styles = letterOnly
     ? (["serif", "display", "sans"] as const)
@@ -307,8 +309,14 @@ export function FontSelectField({
   return (
     <Field label={label}>
       <select
-        value={params.fontId}
-        onChange={(e) => onChange({ fontId: e.target.value })}
+        value={params[fontKey]}
+        onChange={(e) =>
+          onChange(
+            fontKey === "scriptFontId"
+              ? { scriptFontId: e.target.value }
+              : { fontId: e.target.value },
+          )
+        }
         className="w-full rounded-lg border border-line bg-ink px-3 py-2 text-sm outline-none ring-accent/40 focus:ring-2"
       >
         {styles.map((style) => (

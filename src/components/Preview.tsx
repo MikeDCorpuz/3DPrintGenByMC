@@ -57,13 +57,13 @@ function PartMesh({
     <mesh ref={mesh} geometry={geometry} position={[0, 0, lift]} castShadow receiveShadow>
       <meshStandardMaterial
         color={color}
-        roughness={0.38}
-        metalness={0.06}
-        envMapIntensity={0.85}
+        roughness={0.46}
+        metalness={0.04}
+        envMapIntensity={0.55}
         flatShading={false}
         polygonOffset
-        polygonOffsetFactor={-1}
-        polygonOffsetUnits={-1}
+        polygonOffsetFactor={1}
+        polygonOffsetUnits={1}
       />
     </mesh>
   );
@@ -107,15 +107,17 @@ export function Preview({ batch, explode, showBed }: PreviewProps) {
       }}
     >
       <color attach="background" args={["#0b0d11"]} />
-      <hemisphereLight intensity={0.55} color="#f4efe6" groundColor="#1a1410" />
+      <hemisphereLight intensity={0.32} color="#f4efe6" groundColor="#1a1410" />
       <directionalLight
-        position={[80, 120, 60]}
-        intensity={1.35}
+        position={[46, 28, 72]}
+        intensity={1.65}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
+        shadow-bias={-0.00015}
+        shadow-normalBias={0.015}
       />
-      <directionalLight position={[-70, 40, 30]} intensity={0.35} color="#8eb4d4" />
+      <directionalLight position={[-90, 36, 24]} intensity={0.42} color="#d5e6f4" />
 
       {showBed && <Bed />}
 

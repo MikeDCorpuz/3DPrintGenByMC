@@ -1,7 +1,9 @@
-import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
+import { isClickerProduct, isLetterBeadProduct, isLetterCharmProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
 import type { KeychainParams, LayerId } from "../types";
 import { ClickerControls } from "./controls/ClickerControls";
 import { KeychainControls } from "./controls/KeychainControls";
+import { LetterBeadControls } from "./controls/LetterBeadControls";
+import { LetterCharmControls } from "./controls/LetterCharmControls";
 import { MonogramControls } from "./controls/MonogramControls";
 import { NameplateControls } from "./controls/NameplateControls";
 import { PetTagControls } from "./controls/PetTagControls";
@@ -24,6 +26,12 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
   }
   if (isNameplateProduct(params.productType)) {
     return <NameplateControls {...props} />;
+  }
+  if (isLetterBeadProduct(params.productType)) {
+    return <LetterBeadControls {...props} />;
+  }
+  if (isLetterCharmProduct(params.productType)) {
+    return <LetterCharmControls {...props} />;
   }
   if (isPetTagProduct(params.productType)) {
     return <PetTagControls {...props} />;

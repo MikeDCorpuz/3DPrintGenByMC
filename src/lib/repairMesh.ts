@@ -139,6 +139,49 @@ function manifoldToGeometry(solid: InstanceType<typeof Manifold>): BufferGeometr
   return geometry;
 }
 
+/** Left-to-right cord tunnel. Constant round section the whole way through. */
+export async function subtractCordHole(
+  geometry: BufferGeometry,
+  holeR: number,
+  span: number,
+  centerZ: number,
+): Promise<BufferGeometry> {
+  const radius = Math.max(1.2, holeR);
+  const length = Math.max(span + 8, 12);
+  try {
+    const api = await getApi();
+    const solid = geometryToManifold(api.Manifold, api.Mesh, geometry, 0.05);
+    if (!solid) return geometry;
+
+    const cutter = api.Manifold.cylinder(length, radius, radius, 36, true)
+      .rotate(0, 90, 0)
+      .translate(0, 0, centerZ);
+    const cut = solid.subtract(cutter);
+    cutter.delete();
+    solid.delete();
+    if (cut.isEmpty()) {
+      cut.delete();
+      return geometry;
+    }
+    const next = manifoldToGeometry(cut);
+    cut.delete();
+    if (!next.getAttribute("position")?.count) {
+      next.dispose();
+      return geometry;
+    }
+    const before = approxVolume(geometry);
+    const after = approxVolume(next);
+    // An open letter like C can miss a short cutter. Keep the result only if the tunnel was actually removed.
+    if (before > 1 && after > before - radius * radius * 4) {
+      next.dispose();
+      return geometry;
+    }
+    return next;
+  } catch {
+    return geometry;
+  }
+}
+
 export interface RepairPiece {
   geometry: BufferGeometry;
   repaired: boolean;

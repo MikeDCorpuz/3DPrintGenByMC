@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
+import { isClickerProduct, isLetterBeadProduct, isLetterCharmProduct, isMonogramProduct, isNameplateProduct, isPetTagProduct } from "../types";
 import { repairGeometriesPreserveAll } from "./repairMesh";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
@@ -22,6 +22,13 @@ function layerLabel(layer: LayerId, productType: KeychainParams["productType"]) 
     if (layer === "outer") return "Desk plate";
     if (layer === "outline") return "Plate frame";
     if (layer === "name") return "Name";
+  }
+  if (isLetterCharmProduct(productType)) {
+    if (layer === "outer") return "Letter charm";
+  }
+  if (isLetterBeadProduct(productType)) {
+    if (layer === "outer") return "Cloud bead";
+    if (layer === "name") return "Letter";
   }
   if (isPetTagProduct(productType)) {
     if (layer === "outer") return "Pet tag";
@@ -223,9 +230,13 @@ ${components}
     ? "letter stand"
     : isNameplateProduct(params.productType)
       ? "name plate"
-      : isPetTagProduct(params.productType)
-        ? "pet tag"
-        : isClickerProduct(params.productType)
+      : isLetterCharmProduct(params.productType)
+        ? "letter charm"
+        : isLetterBeadProduct(params.productType)
+          ? "letter bead"
+          : isPetTagProduct(params.productType)
+          ? "pet tag"
+          : isClickerProduct(params.productType)
           ? "clicker"
           : "keychain";
   const title = batch.items.length === 1
@@ -244,7 +255,11 @@ ${components}
       ? "Multi-color letter stand with desk foot and script writing. Each layer is a separate color group for Bambu Studio AMS."
       : isNameplateProduct(params.productType)
         ? "Multi-color desk name plate with raised lettering. Each layer is a separate color group for Bambu Studio AMS."
-        : isPetTagProduct(params.productType)
+        : isLetterCharmProduct(params.productType)
+          ? "Single-color comic letter charm with a clasp hole and the name recessed along the longest stroke."
+          : isLetterBeadProduct(params.productType)
+            ? "Thick per-letter cloud beads with a left-to-right cord hole. Letter and accent layers are separate color groups."
+            : isPetTagProduct(params.productType)
           ? "Multi-color pet collar tag with raised name and ring hole. Each layer is a separate color group for Bambu Studio AMS."
           : isClickerProduct(params.productType)
             ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
@@ -324,7 +339,11 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
           ? "letter-stand"
           : params.productType === "nameplate"
             ? "name-plate"
-            : params.productType === "pet-tag"
+            : params.productType === "letter-charm"
+              ? "letter-charm"
+              : params.productType === "letter-bead"
+                ? "letter-bead"
+                : params.productType === "pet-tag"
               ? "pet-tag"
               : "keychain";
   const filename = `${fileSlug(batch) || suffix}-${suffix}.3mf`;

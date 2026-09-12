@@ -7,6 +7,7 @@ import { SupportBanner } from "./components/SupportBanner";
 import { export3mf } from "./lib/export3mf";
 import { loadFont } from "./lib/fontCache";
 import { buildBatch, disposeBatch } from "./lib/geometry";
+import { punchLetterBeadCords } from "./lib/letterBead";
 import { getFont } from "./lib/fonts";
 import { parseNames } from "./lib/names";
 import {
@@ -24,6 +25,8 @@ import {
   isMonogramProduct,
   isNameplateProduct,
   isPetTagProduct,
+  isLetterCharmProduct,
+  isLetterBeadProduct,
   type BuiltBatch,
   type KeychainParams,
   type LayerId,
@@ -42,7 +45,7 @@ export default function App() {
 
   const fontLabel = useMemo(() => {
     const letter = getFont(params.fontId).name;
-    if (!isMonogramProduct(params.productType)) return letter;
+    if (!isMonogramProduct(params.productType) && !isLetterCharmProduct(params.productType)) return letter;
     return `${letter} + ${getFont(params.scriptFontId).name}`;
   }, [params.fontId, params.scriptFontId, params.productType]);
   const names = useMemo(
@@ -77,11 +80,13 @@ export default function App() {
     const handle = window.setTimeout(async () => {
       try {
         const font = await loadFont(params.fontId);
-        const scriptFont = isMonogramProduct(params.productType)
-          ? await loadFont(params.scriptFontId)
-          : undefined;
+        const scriptFont =
+          isMonogramProduct(params.productType) || isLetterCharmProduct(params.productType)
+            ? await loadFont(params.scriptFontId)
+            : undefined;
         if (cancelled) return;
         const next = buildBatch(font, params, scriptFont);
+        if (isLetterBeadProduct(params.productType)) await punchLetterBeadCords(next, params);
         if (cancelled) {
           disposeBatch(next);
           return;
@@ -146,7 +151,11 @@ export default function App() {
           ? "map Letter stand / Rim / Script to your AMS slots"
           : isNameplateProduct(params.productType)
             ? "map Desk plate / Frame / Name to your AMS slots"
-            : isPetTagProduct(params.productType)
+            : isLetterCharmProduct(params.productType)
+              ? "map Letter charm to one filament (the name is a recess, not a second color)"
+              : isLetterBeadProduct(params.productType)
+                ? "map Cloud / Letter to your AMS slots"
+                : isPetTagProduct(params.productType)
               ? "map Pet tag / Rim / Name to your AMS slots"
               : "map Outer / Outline / Name to your AMS slots";
       const repairNote =
@@ -167,13 +176,17 @@ export default function App() {
     ? "letter stand"
     : isNameplateProduct(params.productType)
       ? "name plate"
-      : isPetTagProduct(params.productType)
-        ? "pet tag"
-        : isClickerProduct(params.productType)
-          ? isClickerV2(params.productType)
-            ? "clicker v2"
-            : "clicker"
-          : "keychain";
+      : isLetterCharmProduct(params.productType)
+        ? "letter charm"
+        : isLetterBeadProduct(params.productType)
+          ? "letter bead"
+          : isPetTagProduct(params.productType)
+          ? "pet tag"
+          : isClickerProduct(params.productType)
+            ? isClickerV2(params.productType)
+              ? "clicker v2"
+              : "clicker"
+            : "keychain";
   const previewTitle =
     names.length === 1 ? names[0] : `${names.length} ${noun}s`;
   const isDesktopApp = import.meta.env.VITE_DESKTOP === "1";
@@ -185,7 +198,7 @@ export default function App() {
           <div className="text-[11px] uppercase tracking-[0.2em] text-accent">Parametric by Mike Corpuz</div>
           <h1 className="mt-1 text-xl font-semibold">3D Print Studio</h1>
           <div className="mt-0.5 flex items-center justify-between gap-3 text-xs text-muted">
-            <span>Keychains · tags · plates · clickers · stands</span>
+            <span>Keychains · letter charms · beads · tags · plates</span>
             {!isDesktopApp && (
               <a
                 href="/downloads/"
@@ -274,9 +287,11 @@ export default function App() {
                 params.productType === "nameplate" ||
                 params.productType === "pet-tag"
                   ? " or length"
-                  : isMonogramProduct(params.productType)
+                  : isMonogramProduct(params.productType) || isLetterCharmProduct(params.productType)
                     ? " or letter height"
-                    : ""}
+                    : isLetterBeadProduct(params.productType)
+                      ? " or bead size"
+                      : ""}
                 .
               </div>
             ) : null}
@@ -292,9 +307,10 @@ export default function App() {
             )}
             <div className="rounded-xl border border-line/80 bg-panel/90 px-3 py-2 text-[11px] leading-relaxed text-muted backdrop-blur">
               <span className="font-medium text-paper/80">Disclaimer:</span> download runs an automatic
-              mesh repair (Manifold) to close open edges when possible. If Preview still looks odd in
-              Bambu Studio, right-click the model →{" "}
-              <span className="text-paper/90">Fix Model</span>, then slice.
+              mesh repair to close open edges when possible. The preview keeps the recess visible, so
+              a shallow pocket can look stronger on screen than in a slicer. If a slicer shows open
+              edges, right-click the model → <span className="text-paper/90">Fix Model</span>, then
+              slice.
             </div>
             <button
               type="button"

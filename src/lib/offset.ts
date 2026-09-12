@@ -128,6 +128,11 @@ export function differencePolys(subject: Poly[], holes: Poly[]): Poly[] {
   return clip(subject, holes, ClipperLib.ClipType.ctDifference);
 }
 
+export function intersectionPolys(subject: Poly[], clipPolys: Poly[]): Poly[] {
+  if (!subject.length || !clipPolys.length) return [];
+  return clip(subject, clipPolys, ClipperLib.ClipType.ctIntersection);
+}
+
 export function offsetPolys(polys: Poly[], deltaMm: number): Poly[] {
   if (!polys.length) return [];
   if (Math.abs(deltaMm) < 0.01) return unionPolys(polys);
