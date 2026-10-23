@@ -24,7 +24,7 @@ export function SupportBanner() {
   const [open, setOpen] = useState<Wallet | null>("maya");
 
   return (
-    <section className="border-b border-line bg-gradient-to-b from-[#1a1510] to-panel px-5 py-4">
+    <section className="rounded-xl border border-line/80 bg-panel/92 p-3 shadow-lg shadow-black/30 backdrop-blur">
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-[11px] uppercase tracking-[0.18em] text-accent">Buy me a coffee</div>

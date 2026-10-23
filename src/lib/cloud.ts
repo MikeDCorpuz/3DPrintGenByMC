@@ -10,27 +10,85 @@ import {
   unionPolysLoose,
   type Poly,
 } from "./offset";
-import { punchRing } from "./shapes";
+import { punchRing, RING_NAME_GAP_MM } from "./shapes";
 import { extrudeSolid } from "./extrude";
 
-function ringAnchor(
+function cloudRingLayout(params: KeychainParams) {
+  const holeR = params.ringDiameterMm / 2;
+  const wall = Math.max(2.2, params.ringMarginMm);
+  const tabR = holeR + wall;
+  const puff = Math.max(0.8, params.platePaddingMm);
+  const rim = params.layers.outline ? Math.max(0.6, params.outlineWidthMm) : 0;
+  // Positive bite sinks the hole into the cloud so the tab welds to the name.
+  const bite = puff + rim - RING_NAME_GAP_MM;
+  const overlap = Math.max(wall * 0.8, wall + bite);
+  const stickOut = Math.max(0, tabR * 2 - overlap);
+  return { holeR, tabR, overlap, stickOut };
+}
+
+function extremeCrossing(polys: Poly[], alongX: boolean, at: number, wantMax: boolean) {
+  let best: number | null = null;
+  for (const poly of polys) {
+    const n = poly.length;
+    for (let i = 0; i < n; i++) {
+      const a = poly[i];
+      const b = poly[(i + 1) % n];
+      const aT = alongX ? a.y : a.x;
+      const bT = alongX ? b.y : b.x;
+      const d = bT - aT;
+      if (Math.abs(d) < 1e-9) continue;
+      const lo = Math.min(aT, bT);
+      const hi = Math.max(aT, bT);
+      if (at < lo || at >= hi) continue;
+      const aU = alongX ? a.x : a.y;
+      const bU = alongX ? b.x : b.y;
+      const u = aU + ((at - aT) / d) * (bU - aU);
+      if (best === null || (wantMax ? u > best : u < best)) best = u;
+    }
+  }
+  return best;
+}
+
+function silhouetteEdge(
+  polys: Poly[],
+  position: Exclude<RingPosition, "none">,
   bounds: ReturnType<typeof polyBounds>,
-  position: RingPosition,
-  tabR: number,
 ) {
+  const alongX = position === "left" || position === "right";
+  const wantMax = position === "right" || position === "top";
+  const mid = alongX ? (bounds.minY + bounds.maxY) / 2 : (bounds.minX + bounds.maxX) / 2;
+  const span = Math.max(1, alongX ? bounds.height : bounds.width);
+  const hits: number[] = [];
+  for (let i = -3; i <= 3; i++) {
+    const at = mid + (i / 6) * span * 0.3;
+    const hit = extremeCrossing(polys, alongX, at, wantMax);
+    if (hit !== null) hits.push(hit);
+  }
+  hits.sort((a, b) => a - b);
+  const edge = hits.length
+    ? hits[Math.floor(hits.length / 2)]
+    : wantMax
+      ? alongX
+        ? bounds.maxX
+        : bounds.maxY
+      : alongX
+        ? bounds.minX
+        : bounds.minY;
+  return alongX ? { x: edge, y: mid } : { x: mid, y: edge };
+}
+
+function ringAnchor(polys: Poly[], position: RingPosition, tabR: number, overlap: number) {
   if (position === "none") return null;
-  const overlap = 1.6;
-  const midX = (bounds.minX + bounds.maxX) / 2;
-  const midY = (bounds.minY + bounds.maxY) / 2;
+  const edge = silhouetteEdge(polys, position, polyBounds(polys));
   switch (position) {
     case "left":
-      return { x: bounds.minX - tabR + overlap, y: midY };
+      return { x: edge.x - tabR + overlap, y: edge.y };
     case "right":
-      return { x: bounds.maxX + tabR - overlap, y: midY };
+      return { x: edge.x + tabR - overlap, y: edge.y };
     case "top":
-      return { x: midX, y: bounds.maxY + tabR - overlap };
+      return { x: edge.x, y: edge.y + tabR - overlap };
     case "bottom":
-      return { x: midX, y: bounds.minY - tabR + overlap };
+      return { x: edge.x, y: edge.y - tabR + overlap };
     default:
       return null;
   }
@@ -106,12 +164,11 @@ export function buildCloudParts(
     throw new Error("Could not build a cloud outline for that name. Try more padding or another font.");
   }
 
-  const holeR = params.ringDiameterMm / 2;
-  const tabR = holeR + Math.max(2.2, params.ringMarginMm);
-  const anchor = ringAnchor(polyBounds(outerCloud), params.ringPosition, tabR);
-  const ring = anchor ? { ...anchor, tabR, holeR } : null;
+  const layout = cloudRingLayout(params);
+  const anchor = ringAnchor(outerCloud, params.ringPosition, layout.tabR, layout.overlap);
+  const ring = anchor ? { ...anchor, tabR: layout.tabR, holeR: layout.holeR } : null;
   const innerRing = ring
-    ? { ...ring, tabR: Math.max(holeR + 1.2, tabR - rim) }
+    ? { ...ring, tabR: Math.max(layout.holeR + 1.2, layout.tabR - rim) }
     : null;
 
   const platePolys = withRing(outerCloud, ring);
@@ -162,11 +219,9 @@ export function cloudScaleExtras(params: KeychainParams) {
   const ringOn = params.ringPosition !== "none";
   const side = ringOn && (params.ringPosition === "left" || params.ringPosition === "right");
   const end = ringOn && (params.ringPosition === "top" || params.ringPosition === "bottom");
-  const ringExtra = ringOn
-    ? params.ringDiameterMm + Math.max(2.2, params.ringMarginMm) * 2 - 1.6
-    : 0;
+  const stickOut = ringOn ? cloudRingLayout(params).stickOut : 0;
   return {
-    extraX: (puff + rim) * 2 + (side ? Math.max(0, ringExtra) : 0),
-    extraY: (puff + rim) * 2 + (end ? Math.max(0, ringExtra) : 0),
+    extraX: (puff + rim) * 2 + (side ? stickOut : 0),
+    extraY: (puff + rim) * 2 + (end ? stickOut : 0),
   };
 }

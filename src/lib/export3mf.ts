@@ -1,7 +1,7 @@
 import JSZip from "jszip";
 import type { BufferGeometry } from "three";
 import type { BuiltBatch, KeychainParams, LayerId } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { isClickerProduct, isKeychainV2, isMonogramProduct, isNameplateProduct } from "../types";
 import { repairGeometriesPreserveAll } from "./repairMesh";
 
 const LAYER_ORDER: LayerId[] = ["housing", "outer", "outline", "name"];
@@ -239,7 +239,9 @@ ${components}
         ? "Multi-color desk name plate with raised lettering. Each layer is a separate color group for Bambu Studio AMS."
         : isClickerProduct(params.productType)
           ? "Multi-color clicker housing and keycap. Each layer is a separate color group for Bambu Studio AMS."
-          : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
+          : isKeychainV2(params.productType)
+            ? "Name keychains with a plate and raised lettering, no border. Each layer is a separate color group for Bambu Studio AMS."
+            : "Multi-color name keychains. Each layer is a separate color group for Bambu Studio AMS."
   }</metadata>
   <resources>
 ${groups}
@@ -307,7 +309,9 @@ export async function export3mf(batch: BuiltBatch, params: KeychainParams) {
     mimeType: "model/3mf",
   });
   const suffix =
-    params.productType === "clicker-v2"
+    params.productType === "keychain-v2"
+      ? "keychain-v2"
+      : params.productType === "clicker-v2"
       ? "clicker-v2"
       : params.productType === "clicker"
         ? "clicker"

@@ -20,6 +20,7 @@ import {
   DEFAULT_PARAMS,
   isClickerProduct,
   isClickerV2,
+  isKeychainV2,
   isMonogramProduct,
   isNameplateProduct,
   type BuiltBatch,
@@ -144,7 +145,9 @@ export default function App() {
           ? "map Letter stand / Rim / Script to your AMS slots"
           : isNameplateProduct(params.productType)
             ? "map Desk plate / Frame / Name to your AMS slots"
-            : "map Outer / Outline / Name to your AMS slots";
+            : isKeychainV2(params.productType)
+        ? "map Plate / Name to your AMS slots"
+        : "map Outer / Outline / Name to your AMS slots";
       const repairNote =
         repairedParts > 0
           ? ` Auto-repaired ${repairedParts} mesh${repairedParts === 1 ? "" : "es"} before export.`
@@ -167,7 +170,9 @@ export default function App() {
         ? isClickerV2(params.productType)
           ? "clicker v2"
           : "clicker"
-        : "keychain";
+        : isKeychainV2(params.productType)
+          ? "keychain v2"
+          : "keychain";
   const previewTitle =
     names.length === 1 ? names[0] : `${names.length} ${noun}s`;
   const isDesktopApp = import.meta.env.VITE_DESKTOP === "1";
@@ -194,7 +199,9 @@ export default function App() {
               ? "One big letter with a desk stand and script writing across the face. Comma-separate names to print a set."
               : isNameplateProduct(params.productType)
                 ? "Long desk name plate with raised lettering — no key ring. Comma-separate names to print a set."
-                : isClickerV2(params.productType)
+                : isKeychainV2(params.productType)
+                  ? "Name keychain with a plate and raised lettering, and no border. Comma-separate names to print a set."
+                  : isClickerV2(params.productType)
                   ? "Linked name-bar clicker with a left ring. Comma-separate names to print a set."
                   : isClickerProduct(params.productType)
                     ? params.clickerLayout === "connected"
@@ -206,7 +213,6 @@ export default function App() {
             <StatsBar stats={stats} />
           </div>
         </header>
-        {!isDesktopApp && <SupportBanner />}
         <div className="min-h-0 flex-1">
           <Controls params={params} onChange={patch} onColor={onColor} onLayer={onLayer} />
         </div>
@@ -215,30 +221,37 @@ export default function App() {
       <main className="relative min-w-0 flex-1">
         <Preview batch={batch} explode={explode} showBed={showBed} />
 
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-4">
-          <div className="pointer-events-auto rounded-xl border border-line/80 bg-panel/85 px-3 py-2 backdrop-blur">
-            <div className="font-mono text-[11px] text-muted">
-              {busy ? "Building mesh…" : error ? "Build failed" : "256 × 256 mm bed"}
+        <div className="pointer-events-none absolute left-0 top-0 flex items-start p-4">
+          <div className="flex flex-col items-start gap-3">
+            <div className="pointer-events-auto rounded-xl border border-line/80 bg-panel/85 px-3 py-2 backdrop-blur">
+              <div className="font-mono text-[11px] text-muted">
+                {busy ? "Building mesh…" : error ? "Build failed" : "256 × 256 mm bed"}
+              </div>
+              <div className="text-sm">
+                {previewTitle} · {fontLabel}
+              </div>
             </div>
-            <div className="text-sm">
-              {previewTitle} · {fontLabel}
-            </div>
+            {batch && (
+              <div className="pointer-events-auto grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl border border-line/80 bg-panel/85 px-3 py-2 font-mono text-[11px] text-paper/80 backdrop-blur">
+                <span className="text-muted">Qty</span>
+                <span>{batch.metrics.count}</span>
+                <span className="text-muted">Used</span>
+                <span>
+                  {batch.metrics.widthMm.toFixed(0)} × {batch.metrics.heightMm.toFixed(0)} mm
+                </span>
+                <span className="text-muted">T</span>
+                <span>{batch.metrics.thicknessMm.toFixed(2)} mm</span>
+                <span className="text-muted">PLA</span>
+                <span>~{batch.metrics.gramsPla.toFixed(1)} g</span>
+              </div>
+            )}
           </div>
-          {batch && (
-            <div className="pointer-events-auto grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl border border-line/80 bg-panel/85 px-3 py-2 font-mono text-[11px] text-paper/80 backdrop-blur">
-              <span className="text-muted">Qty</span>
-              <span>{batch.metrics.count}</span>
-              <span className="text-muted">Used</span>
-              <span>
-                {batch.metrics.widthMm.toFixed(0)} × {batch.metrics.heightMm.toFixed(0)} mm
-              </span>
-              <span className="text-muted">T</span>
-              <span>{batch.metrics.thicknessMm.toFixed(2)} mm</span>
-              <span className="text-muted">PLA</span>
-              <span>~{batch.metrics.gramsPla.toFixed(1)} g</span>
-            </div>
-          )}
         </div>
+        {!isDesktopApp && (
+          <div className="pointer-events-auto absolute right-4 top-4 z-10 w-[260px] max-h-[calc(100%-11rem)] overflow-y-auto">
+            <SupportBanner />
+          </div>
+        )}
 
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-4">
           <div className="w-64 space-y-3 rounded-xl border border-line/80 bg-panel/90 p-3 backdrop-blur">
@@ -273,7 +286,9 @@ export default function App() {
                 {batch.overflow.length === 1 ? "" : "s"} did not fit:
                 {" "}
                 {batch.overflow.join(", ")}. Reduce spacing
-                {params.productType === "keychain" || params.productType === "nameplate"
+                {params.productType === "keychain" ||
+                params.productType === "keychain-v2" ||
+                params.productType === "nameplate"
                   ? " or length"
                   : isMonogramProduct(params.productType)
                     ? " or letter height"

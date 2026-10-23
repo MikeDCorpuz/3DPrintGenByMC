@@ -1,11 +1,12 @@
-import { Box3, BufferGeometry, Vector3 } from "three";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { Box3, BufferGeometry, Vector2, Vector3 } from "three";
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import type { Font } from "opentype.js";
 import type { BuiltBatch, BuiltKeychain, BuiltPart, KeychainParams } from "../types";
-import { isClickerProduct, isMonogramProduct, isNameplateProduct } from "../types";
+import { isClickerProduct, isKeychainV2, isMonogramProduct, isNameplateProduct } from "../types";
 import { letterOutersMm, letterShapesMm, shapesBounds } from "./letters";
 import { extrudeSolid } from "./extrude";
-import { makeFrameShape, makePlateShape, punchRing, ringCenter } from "./shapes";
+import { makeFrameShape, makePlateShape, punchRing, RING_NAME_GAP_MM, ringCenter } from "./shapes";
+import { circlePoly, differencePolys, polysToShapes, shapeToPolys } from "./offset";
 import { formatName } from "./fontCache";
 import { BED_SIZE_MM, packOnBed } from "./layout";
 import { parseNames } from "./names";
@@ -88,7 +89,10 @@ export function layerHeights(params: KeychainParams) {
   };
 }
 
-export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain {
+export function buildKeychain(font: Font, source: KeychainParams): BuiltKeychain {
+  const params: KeychainParams = isKeychainV2(source.productType)
+    ? { ...source, layers: { ...source.layers, outline: false } }
+    : source;
   const nameplate = isNameplateProduct(params.productType);
   const text = formatName(params.name, params.textCase);
   const heights = layerHeights(params);
@@ -104,12 +108,18 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
   const ringPosition = nameplate ? "none" : params.ringPosition;
   const ringOn = ringPosition !== "none";
   const holeR = params.ringDiameterMm / 2;
-  const ringBand = ringOn ? params.ringDiameterMm + params.ringMarginMm * 2 : 0;
   const sideRing = ringOn && (ringPosition === "left" || ringPosition === "right");
   const endRing = ringOn && (ringPosition === "top" || ringPosition === "bottom");
 
   const outlineW = params.layers.outline ? params.outlineWidthMm : 0;
   const pad = params.platePaddingMm;
+  // Only extend the plate enough to keep a short neck between the hole and the letters.
+  const ringBand = ringOn
+    ? Math.max(
+        0,
+        RING_NAME_GAP_MM - pad - outlineW + params.ringDiameterMm + params.ringMarginMm,
+      )
+    : 0;
   const cloud = !nameplate && params.keychainType === "cloud";
   const extras = cloud
     ? cloudScaleExtras(params)
@@ -174,16 +184,41 @@ export function buildKeychain(font: Font, params: KeychainParams): BuiltKeychain
       Math.max(0.4, params.cornerRadiusMm - (sideRing || endRing ? 0 : 0)),
       Math.max(0.3, params.cornerRadiusMm - outlineW),
     );
-    if (ring && !params.layers.outer) punchRing(frame, ring.x - textOffsetX, ring.y - textOffsetY, holeR);
-    const geo = extrudeSolid(frame, heights.outline, Math.max(32, samples));
-    lift(geo, heights.baseZ);
-    geo.translate(textOffsetX, textOffsetY, 0);
-    parts.push({
-      id: "outline",
-      name: nameplate ? "Plate frame" : "Inner outline",
-      color: params.colors.outline,
-      geometry: geo,
-    });
+    const quality = Math.max(32, samples);
+    const geos: BufferGeometry[] = [];
+    if (ring) {
+      const moved = shapeToPolys(frame, quality).map((poly) =>
+        poly.map((p) => new Vector2(p.x + textOffsetX, p.y + textOffsetY)),
+      );
+      const cut = polysToShapes(
+        differencePolys(moved, [circlePoly(ring.x, ring.y, holeR, 48)]),
+        false,
+        0.15,
+      );
+      for (const shape of cut) {
+        const geo = extrudeSolid(shape, heights.outline, quality);
+        if ((geo.getIndex()?.count ?? 0) > 0) geos.push(geo);
+        else geo.dispose();
+      }
+    }
+    if (!geos.length) {
+      const geo = extrudeSolid(frame, heights.outline, quality);
+      geo.translate(textOffsetX, textOffsetY, 0);
+      geos.push(geo);
+    }
+    for (const geo of geos) lift(geo, heights.baseZ);
+    const geometry = geos.length === 1 ? geos[0] : mergeGeometries(geos, false);
+    if (!geometry) {
+      geos.forEach((geo) => geo.dispose());
+    } else {
+      if (geos.length > 1) geos.forEach((geo) => geo.dispose());
+      parts.push({
+        id: "outline",
+        name: nameplate ? "Plate frame" : "Inner outline",
+        color: params.colors.outline,
+        geometry,
+      });
+    }
   }
 
   if (params.layers.name && heights.name > 0) {

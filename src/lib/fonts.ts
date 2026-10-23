@@ -8,7 +8,7 @@ export interface FontOption {
 
 /**
  * Famous fonts loaded as WOFF (opentype.js-compatible) from Fontsource.
- * 25 faces covering the styles people actually pick for keychains.
+ * 30 faces covering the styles people actually pick for keychains.
  */
 export const FONTS: FontOption[] = [
   {
@@ -171,6 +171,41 @@ export const FONTS: FontOption[] = [
     designer: "TypeSETit",
     style: "script",
     url: "https://cdn.jsdelivr.net/npm/@fontsource/great-vibes@5.2.6/files/great-vibes-latin-400-normal.woff",
+  },
+  {
+    id: "satisfy",
+    name: "Satisfy",
+    designer: "Sideshow",
+    style: "script",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/satisfy@5.2.6/files/satisfy-latin-400-normal.woff",
+  },
+  {
+    id: "sacramento",
+    name: "Sacramento",
+    designer: "Astigmatic",
+    style: "script",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/sacramento@5.2.6/files/sacramento-latin-400-normal.woff",
+  },
+  {
+    id: "allura",
+    name: "Allura",
+    designer: "Robert Leuschke",
+    style: "script",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/allura@5.2.6/files/allura-latin-400-normal.woff",
+  },
+  {
+    id: "yellowtail",
+    name: "Yellowtail",
+    designer: "Astigmatic",
+    style: "script",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/yellowtail@5.2.6/files/yellowtail-latin-400-normal.woff",
+  },
+  {
+    id: "kaushan-script",
+    name: "Kaushan Script",
+    designer: "Impallari Type",
+    style: "script",
+    url: "https://cdn.jsdelivr.net/npm/@fontsource/kaushan-script@5.2.6/files/kaushan-script-latin-400-normal.woff",
   },
   {
     id: "press-start-2p",

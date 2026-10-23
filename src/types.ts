@@ -1,4 +1,4 @@
-export type ProductType = "keychain" | "clicker" | "clicker-v2" | "monogram" | "nameplate";
+export type ProductType = "keychain" | "keychain-v2" | "clicker" | "clicker-v2" | "monogram" | "nameplate";
 export type PlateShape = "rounded-rect" | "pill" | "tag" | "hexagon" | "circle";
 export type KeychainType = "plate" | "cloud";
 export type RingPosition = "left" | "right" | "top" | "bottom" | "none";
@@ -66,6 +66,10 @@ export interface KeychainParams {
   clickerSvgName: string;
 }
 
+export function isKeychainV2(productType: ProductType) {
+  return productType === "keychain-v2";
+}
+
 export function isClickerProduct(productType: ProductType) {
   return productType === "clicker" || productType === "clicker-v2";
 }
@@ -84,7 +88,7 @@ export function isNameplateProduct(productType: ProductType) {
 
 /** Keychain and desk name plate share the plate + raised-name builder. */
 export function isPlateProduct(productType: ProductType) {
-  return productType === "keychain" || productType === "nameplate";
+  return productType === "keychain" || productType === "keychain-v2" || productType === "nameplate";
 }
 
 export interface BuiltPart {

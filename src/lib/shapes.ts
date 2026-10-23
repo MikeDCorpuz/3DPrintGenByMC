@@ -110,6 +110,9 @@ export function makeFrameShape(
   return outer;
 }
 
+/** Plastic kept between the key-ring hole and the letter outlines. */
+export const RING_NAME_GAP_MM = 2.6;
+
 export function ringCenter(
   position: RingPosition,
   width: number,
