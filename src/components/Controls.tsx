@@ -4,6 +4,7 @@ import {
   PRESET_COLORS,
   isClickerProduct,
   isClickerV2,
+  isKeychainV2,
   isMonogramProduct,
   isNameplateProduct,
   type ClickerCapArt,
@@ -27,6 +28,7 @@ interface ControlsProps {
 
 const PRODUCTS: { id: ProductType; label: string }[] = [
   { id: "keychain", label: "Keychain" },
+  { id: "keychain-v2", label: "Keychain v2" },
   { id: "nameplate", label: "Name plate" },
   { id: "clicker", label: "Clicker" },
   { id: "clicker-v2", label: "Clicker v2" },
@@ -189,6 +191,7 @@ function LayerCard({
 export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) {
   const clicker = isClickerProduct(params.productType);
   const clickerV2 = isClickerV2(params.productType);
+  const keychainV2 = isKeychainV2(params.productType);
   const monogram = isMonogramProduct(params.productType);
   const nameplate = isNameplateProduct(params.productType);
   const connected = clicker && (clickerV2 || params.clickerLayout === "connected");
@@ -282,6 +285,46 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                             name: "#F4EFE6",
                           },
                         }
+                      : productType === "keychain-v2"
+                        ? {
+                            layers: {
+                              housing: false,
+                              outer: true,
+                              outline: false,
+                              name: true,
+                            },
+                            ...(params.productType === "monogram" || params.productType === "nameplate"
+                              ? {
+                                  keychainType: "plate" as const,
+                                  ringPosition: "left" as const,
+                                  lengthMm: 72,
+                                  totalThicknessMm: 3,
+                                  nameRaiseMm: 0.8,
+                                  outlineRaiseMm: 0.6,
+                                  platePaddingMm: 3.6,
+                                  outlineWidthMm: 1.8,
+                                  cornerRadiusMm: 3.2,
+                                  fontId: params.fontId === "cinzel" ? "montserrat" : params.fontId,
+                                  name: params.name || "MICHAEL",
+                                  colors: {
+                                    housing: "#2A2E33",
+                                    outer: "#C45C26",
+                                    outline: "#1B1B1B",
+                                    name: "#F4EFE6",
+                                  },
+                                }
+                              : {}),
+                          }
+                      : productType === "keychain" && params.productType === "keychain-v2"
+                        ? {
+                            layers: {
+                              ...params.layers,
+                              housing: false,
+                              outer: true,
+                              outline: true,
+                              name: true,
+                            },
+                          }
                       : productType === "keychain" &&
                           (params.productType === "monogram" || params.productType === "nameplate")
                         ? {
@@ -310,6 +353,11 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               })
             }
           />
+          {keychainV2 && (
+            <p className="text-[11px] leading-relaxed text-muted">
+              Same name keychain, without the raised border.
+            </p>
+          )}
         </Field>
         <Field
           label={monogram ? "Script name" : clicker && !connected ? "Letters" : "Names"}
@@ -489,7 +537,9 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
                     ? "Desk plate"
                     : clicker
                       ? "Keycap"
-                      : "Outer outline"
+                      : keychainV2
+                        ? "Plate"
+                        : "Outer outline"
               }
               hint={
                 monogram
@@ -504,28 +554,30 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               onLayer={onLayer}
               onColor={onColor}
             />
-            <LayerCard
-              id="outline"
-              title={
-                monogram
-                  ? "Letter rim"
-                  : nameplate
-                    ? "Plate frame"
+            {!keychainV2 && (
+              <LayerCard
+                id="outline"
+                title={
+                  monogram
+                    ? "Letter rim"
+                    : nameplate
+                      ? "Plate frame"
+                      : clicker
+                        ? "Cap outline"
+                        : "Inner outline"
+                }
+                hint={
+                  monogram
+                    ? "Raised border on the letter face"
                     : clicker
-                      ? "Cap outline"
-                      : "Inner outline"
-              }
-              hint={
-                monogram
-                  ? "Raised border on the letter face"
-                  : clicker
-                    ? "Raised frame on the cap"
-                    : "Raised frame around the name"
-              }
-              params={params}
-              onLayer={onLayer}
-              onColor={onColor}
-            />
+                      ? "Raised frame on the cap"
+                      : "Raised frame around the name"
+                }
+                params={params}
+                onLayer={onLayer}
+                onColor={onColor}
+              />
+            )}
             <LayerCard
               id="name"
               title={
@@ -804,20 +856,24 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
               onChange={(e) => onChange({ nameRaiseMm: Number(e.target.value) })}
             />
           </Field>
-          <Field label="Outline raise" value={`${params.outlineRaiseMm.toFixed(2)} mm`}>
-            <input
-              type="range"
-              min={0.2}
-              max={2.4}
-              step={0.05}
-              value={params.outlineRaiseMm}
-              onChange={(e) => onChange({ outlineRaiseMm: Number(e.target.value) })}
-            />
-          </Field>
+          {!keychainV2 && (
+            <Field label="Outline raise" value={`${params.outlineRaiseMm.toFixed(2)} mm`}>
+              <input
+                type="range"
+                min={0.2}
+                max={2.4}
+                step={0.05}
+                value={params.outlineRaiseMm}
+                onChange={(e) => onChange({ outlineRaiseMm: Number(e.target.value) })}
+              />
+            </Field>
+          )}
           <p className="text-[11px] leading-relaxed text-muted">
             {nameplate
               ? "Thicker base for desk use. Length sets how wide the plate reads; height follows the name."
-              : "Base plate uses the leftover thickness so the finished part matches the total. Height scales with the name so the plate stays proportionate."}
+              : keychainV2
+                ? "Plate and raised name only. Height scales with the name so the plate stays proportionate."
+                : "Base plate uses the leftover thickness so the finished part matches the total. Height scales with the name so the plate stays proportionate."}
           </p>
         </section>
       )}
@@ -968,7 +1024,9 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
           />
           {params.keychainType === "cloud" && (
             <p className="text-[11px] leading-relaxed text-muted">
-              Backing and outline puff around the letter shapes, rounded like a cloud.
+              {keychainV2
+                ? "Backing puffs around the letter shapes, with no separate border."
+                : "Backing and outline puff around the letter shapes, rounded like a cloud."}
             </p>
           )}
         </Field>
@@ -1078,19 +1136,21 @@ export function Controls({ params, onChange, onColor, onLayer }: ControlsProps) 
             />
           </Field>
         )}
-        <Field
-          label={monogram ? "Rim width" : "Outline width"}
-          value={`${params.outlineWidthMm.toFixed(1)} mm`}
-        >
-          <input
-            type="range"
-            min={0.8}
-            max={5}
-            step={0.1}
-            value={params.outlineWidthMm}
-            onChange={(e) => onChange({ outlineWidthMm: Number(e.target.value) })}
-          />
-        </Field>
+        {!keychainV2 && (
+          <Field
+            label={monogram ? "Rim width" : "Outline width"}
+            value={`${params.outlineWidthMm.toFixed(1)} mm`}
+          >
+            <input
+              type="range"
+              min={0.8}
+              max={5}
+              step={0.1}
+              value={params.outlineWidthMm}
+              onChange={(e) => onChange({ outlineWidthMm: Number(e.target.value) })}
+            />
+          </Field>
+        )}
         <Field label="Bed spacing" value={`${params.bedGapMm.toFixed(1)} mm`}>
           <input
             type="range"
